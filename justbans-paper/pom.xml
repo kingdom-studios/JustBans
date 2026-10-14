@@ -24,7 +24,7 @@
         <foundation.path>com.github.kangarko</foundation.path>
 
         <!-- TODO: confirm the exact Paper 26.2 API version string against repo.papermc.io. -->
-        <paper.version>26.2-R0.1-SNAPSHOT</paper.version>
+        <paper.version>26.2</paper.version>
 
         <!-- Fixed relocation target. Must NOT be derived from ${project.artifactId} ("justbans-paper"
              contains a hyphen, which is not a valid Java package name). -->
@@ -48,11 +48,10 @@
             <artifactId>justbans-common</artifactId>
         </dependency>
 
-        <!-- Paper API must be declared above Foundation so it wins over the Spigot API Foundation bundles. -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>${paper.version}</version>
+            <version>26.2.build.121-stable</version>
             <scope>provided</scope>
         </dependency>
 
