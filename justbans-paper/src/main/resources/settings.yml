@@ -31,14 +31,6 @@
 # !-----------------------------------------------------------------------------------------------!
 
 # -------------------------------------------------------------------------------------------------
-# Example of a section
-# -------------------------------------------------------------------------------------------------
-Example:
-
-  # An example of a config key
-  Sample_Flag: true
-
-# -------------------------------------------------------------------------------------------------
 # The formats used in the {date}, {date_short}, {date_month} and {location}. 
 #
 # See the link below to learn how to edit the date format:
@@ -55,7 +47,7 @@ Location_Format: "{world} {x}, {y}, {z}"
 # * THE FIRST ALIAS IS THE MAIN LABEL, YOU CAN CHANGE IT BUT DO NOT REMOVE IT. *
 # * EXAMPLE: [boss, b] will trigger your main command from "/boss" or "/b" * 
 # -------------------------------------------------------------------------------------------------
-Command_Aliases: [plugintemplate, template, plt]
+Command_Aliases: [justbans, jb]
 
 # -------------------------------------------------------------------------------------------------
 # What language should we use for messages? If it exists, the language file will be copied 

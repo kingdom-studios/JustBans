@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>pl.kingdomcraft</groupId>
+        <artifactId>justbans-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>justbans-paper</artifactId>
+
+    <!-- Used by plugin.yml / settings.yml resource filtering (${project.name}). Keep it free of spaces. -->
+    <name>JustBans</name>
+    <packaging>jar</packaging>
+
+    <properties>
+        <main.class>pl.kingdomcraft.justbans.paper.JustBans</main.class>
+
+        <!-- Read by build.xml as well, so keep it in this file. -->
+        <foundation.version>6.10.2</foundation.version>
+        <foundation.path>com.github.kangarko</foundation.path>
+
+        <!-- TODO: confirm the exact Paper 26.2 API version string against repo.papermc.io. -->
+        <paper.version>26.2-R0.1-SNAPSHOT</paper.version>
+
+        <!-- Fixed relocation target. Must NOT be derived from ${project.artifactId} ("justbans-paper"
+             contains a hyphen, which is not a valid Java package name). -->
+        <foundation.relocation>pl.kingdomcraft.justbans.lib</foundation.relocation>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>jitpack</id>
+            <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>pl.kingdomcraft</groupId>
+            <artifactId>justbans-common</artifactId>
+        </dependency>
+
+        <!-- Paper API must be declared above Foundation so it wins over the Spigot API Foundation bundles. -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>${paper.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>${foundation.path}</groupId>
+            <artifactId>Foundation</artifactId>
+            <version>${foundation.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>JustBans-Paper-${project.version}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.48</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <artifactSet>
+                        <includes>
+                            <include>${foundation.path}:Foundation*</include>
+                            <include>pl.kingdomcraft:justbans-common</include>
+                            <include>com.zaxxer:HikariCP</include>
+                            <include>org.mariadb.jdbc:mariadb-java-client</include>
+                            <include>redis.clients:jedis</include>
+                            <include>org.apache.commons:commons-pool2</include>
+                            <include>com.github.ben-manes.caffeine:caffeine</include>
+                            <include>com.google.code.gson:gson</include>
+                        </includes>
+                    </artifactSet>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                                <exclude>META-INF/MANIFEST.MF</exclude>
+                                <exclude>META-INF/versions/*/module-info.class</exclude>
+                                <exclude>module-info.class</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                    </transformers>
+                    <relocations>
+                        <relocation>
+                            <pattern>org.mineacademy.fo</pattern>
+                            <shadedPattern>${foundation.relocation}</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.zaxxer.hikari</pattern>
+                            <shadedPattern>${shade.prefix}.hikari</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.mariadb.jdbc</pattern>
+                            <shadedPattern>${shade.prefix}.mariadb</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>redis.clients</pattern>
+                            <shadedPattern>${shade.prefix}.redis</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.apache.commons.pool2</pattern>
+                            <shadedPattern>${shade.prefix}.pool2</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.github.benmanes.caffeine</pattern>
+                            <shadedPattern>${shade.prefix}.caffeine</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.google.gson</pattern>
+                            <shadedPattern>${shade.prefix}.gson</shadedPattern>
+                        </relocation>
+                    </relocations>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <!-- Replaces ${project.name} and other variables in plugin.yml / settings.yml. -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>
