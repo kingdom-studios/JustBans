@@ -47,11 +47,30 @@ public final class PunishmentService {
 	private final ReasonRepository reasons = new ReasonRepository();
 	private final ServerRepository servers = new ServerRepository();
 
+	private volatile Runnable eventsAppendedHook = () -> {
+	};
+
 	public PunishmentService(Database database, String nodeId, Clock clock, ExemptionChecker exemptions) {
 		this.database = database;
 		this.nodeId = nodeId;
 		this.clock = clock;
 		this.exemptions = exemptions;
+	}
+
+	/**
+	 * Called after a transaction that appended outbox events has committed (for example to wake the
+	 * {@code OutboxPublisher}). Runs on the calling database thread; keep it fast and non-throwing.
+	 */
+	public void onEventsAppended(Runnable hook) {
+		this.eventsAppendedHook = hook;
+	}
+
+	private void notifyEventsAppended() {
+		try {
+			this.eventsAppendedHook.run();
+		} catch (final RuntimeException ignored) {
+			// the periodic drain will pick the events up
+		}
 	}
 
 	// ------------------------------------------------------------------------------------------
@@ -62,7 +81,17 @@ public final class PunishmentService {
 		return this.database.supplyAsync(() -> this.issueBlocking(request));
 	}
 
-	private Result<Punishment> issueBlocking(PunishmentRequest request) throws SQLException {
+	/** Blocking form of {@link #issue}. Only call from a database or other non-main thread. */
+	public Result<Punishment> issueBlocking(PunishmentRequest request) throws SQLException {
+		final Result<Punishment> result = this.issueTransaction(request);
+
+		if (result.isOk())
+			this.notifyEventsAppended();
+
+		return result;
+	}
+
+	private Result<Punishment> issueTransaction(PunishmentRequest request) throws SQLException {
 		final Instant now = this.clock.instant();
 
 		final Result<Plan> planned = this.database.query(connection -> this.plan(connection, request));
@@ -215,7 +244,17 @@ public final class PunishmentService {
 		return this.database.supplyAsync(() -> this.revokeBlocking(request));
 	}
 
-	private Result<Punishment> revokeBlocking(RevokeRequest request) throws SQLException {
+	/** Blocking form of {@link #revoke}. Only call from a database or other non-main thread. */
+	public Result<Punishment> revokeBlocking(RevokeRequest request) throws SQLException {
+		final Result<Punishment> result = this.revokeTransaction(request);
+
+		if (result.isOk())
+			this.notifyEventsAppended();
+
+		return result;
+	}
+
+	private Result<Punishment> revokeTransaction(RevokeRequest request) throws SQLException {
 		final Instant now = this.clock.instant();
 
 		return this.database.transaction(connection -> {

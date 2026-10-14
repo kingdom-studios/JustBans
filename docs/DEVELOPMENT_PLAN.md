@@ -425,7 +425,7 @@ The prefix `justbans:` can be changed in config, so several networks can share o
   "node": "velocity-1",
   "seq": 18842,                 // jb_events.id (events only) — gap detection / replay
   "payload": { … },
-  "sig": "base64(HMAC-SHA256(secret, v|id|type|ts|node|canonical(payload)))"
+  "sig": "base64(HMAC-SHA256(secret, v|id|type|ts|node|seq|canonical(payload)))"  // seq is empty when absent
 }
 ```
 
