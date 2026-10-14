@@ -16,37 +16,37 @@ import pl.kingdomcraft.justbans.paper.settings.Localization;
  * the main thread before touching the sender, and it never uses the command's own sender field (a command object is
  * shared by every invocation).
  */
-final class Reports {
+public final class Reports {
 
 	private Reports() {
 	}
 
-	static void success(CommandSender sender, String message) {
+	public static void success(CommandSender sender, String message) {
 		Common.runLater(() -> Messenger.success(sender, message));
 	}
 
-	static void error(CommandSender sender, String message) {
+	public static void error(CommandSender sender, String message) {
 		Common.runLater(() -> Messenger.error(sender, message));
 	}
 
-	static void plain(CommandSender sender, String... messages) {
+	public static void plain(CommandSender sender, String... messages) {
 		Common.runLater(() -> Common.tell(sender, messages));
 	}
 
 	/** Reports a service result: the success line for the punishment, or the localized error. */
-	static void result(Core core, CommandSender sender, Result<Punishment> result) {
+	public static void result(Core core, CommandSender sender, Result<Punishment> result) {
 		if (result.isOk())
 			success(sender, describe(core, result.value()));
 		else
 			error(sender, errorText(result));
 	}
 
-	static String errorText(Result<?> result) {
+	public static String errorText(Result<?> result) {
 		return Msg.fill(Localization.Errors.forCode(result.error()), "message", result.message());
 	}
 
 	/** The success line for a created or revoked punishment. */
-	static String describe(Core core, Punishment p) {
+	public static String describe(Core core, Punishment p) {
 		final String[] values = { "target", p.targetName(), "id", p.publicId(), "scope", scopeText(p), "expires", expiresText(core, p) };
 
 		if (p.isRevoked())
@@ -59,7 +59,7 @@ final class Reports {
 		};
 	}
 
-	static String scopeText(Punishment p) {
+	public static String scopeText(Punishment p) {
 		return switch (p.scope().type()) {
 			case NETWORK -> Localization.Punish.SCOPE_NETWORK;
 			case SERVER -> Msg.fill(Localization.Punish.SCOPE_SERVER, "target", p.scope().target());
@@ -67,7 +67,7 @@ final class Reports {
 		};
 	}
 
-	static String expiresText(Core core, Punishment p) {
+	public static String expiresText(Core core, Punishment p) {
 		if (p.expiresAt() == null)
 			return Localization.Punish.EXPIRES_NEVER;
 

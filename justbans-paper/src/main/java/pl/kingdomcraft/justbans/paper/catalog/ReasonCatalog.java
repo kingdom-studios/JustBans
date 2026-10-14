@@ -42,6 +42,11 @@ public final class ReasonCatalog {
 		return this.snapshot.get().size();
 	}
 
+	/** Every usable reason, in configured order. */
+	public List<ReasonDefinition> all() {
+		return List.copyOf(this.snapshot.get().values());
+	}
+
 	/** Ids of every reason, in configured order. */
 	public List<String> ids() {
 		return List.copyOf(this.snapshot.get().keySet());

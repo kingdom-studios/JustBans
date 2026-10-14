@@ -1,0 +1,296 @@
+# -------------------------------------------------------------------------------------------------
+# JustBans menus (/punish and /history).
+#
+# Every title, slot, material, name and lore line can be changed here. Text supports & colour codes.
+# Materials are names such as DIAMOND_SWORD. Slots count from 0 at the top-left of the inventory
+# (a 54-slot menu has rows of 9: row 1 = 0-8, row 2 = 9-17, and so on).
+#
+# If this file contains a mistake (a slot outside the menu, two buttons on one slot) the problem is
+# printed to the console and the built-in layout is used until it is fixed.
+#
+# The last slot of a menu is reserved for the return button where a menu has one.
+#
+# Placeholders by menu:
+#   Punish    {target} {bans} {warns} {reason} {id} {actions} {action}
+#   Action    {target} {reason} {action} {scope} {duration} {step}
+#   Confirm   {target} {reason} {action} {scope} {duration} {note}
+#   Servers   {name}
+#   History   {target} {id} {type} {scope} {reason} {actor} {created} {expires} {revoked_by} {revoked_at} {hint}
+#   Detail    the same as History, plus {note}
+# -------------------------------------------------------------------------------------------------
+
+# The main menu: pick a reason.
+Punish:
+  Title: "Punish {target}"
+  Size: 54
+  Head_Slot: 4
+  Head:
+    Material: "PLAYER_HEAD"
+    Name: "&e{target}"
+    Lore:
+      - "&7Active bans: &f{bans}"
+      - "&7Active warns: &f{warns}"
+      - ""
+      - "&7Choose a reason below."
+  # Slots used by reasons. More reasons than slots creates pages.
+  Reason_Slots: [19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34]
+  # Material is the icon for reasons that have no icon of their own.
+  Reason:
+    Material: "PAPER"
+    Name: "&f{reason}"
+    Lore:
+      - "&8id: {id}"
+      - ""
+      - "&7Available actions:"
+      - "{actions}"
+      - ""
+      - "&eClick to choose"
+  # One line per action in {actions}.
+  Action_Line: " &7- &f{action}"
+  Empty_Message: "&cThere are no reasons you may use."
+
+# Second step: what to do and for how long.
+Action:
+  Title: "{reason} &8> &0{target}"
+  Size: 54
+  Summary_Slot: 4
+  Summary:
+    Material: "BOOK"
+    Name: "&e{reason}"
+    Lore:
+      - "&7Player: &f{target}"
+      - "&7Action: &f{action}"
+      - "&7Where: &f{scope}"
+      - "&7Duration: &f{duration}"
+  Ban_Slot: 19
+  Tempban_Slot: 20
+  Warn_Slot: 21
+  Kick_Slot: 22
+  Ban:
+    Material: "RED_CONCRETE"
+    Name: "&cBan"
+    Lore:
+      - "&7Permanent ban."
+      - ""
+      - "&eClick to select"
+  Tempban:
+    Material: "ORANGE_CONCRETE"
+    Name: "&6Temporary ban"
+    Lore:
+      - "&7Ban that ends by itself."
+      - ""
+      - "&eClick to select"
+  Warn:
+    Material: "YELLOW_CONCRETE"
+    Name: "&eWarn"
+    Lore:
+      - "&7A recorded warning."
+      - ""
+      - "&eClick to select"
+  Kick:
+    Material: "LIGHT_BLUE_CONCRETE"
+    Name: "&bKick"
+    Lore:
+      - "&7Remove from the network."
+      - ""
+      - "&eClick to select"
+  Scope_Network_Slot: 24
+  Scope_Server_Slot: 25
+  Scope_Network:
+    Material: "COMPASS"
+    Name: "&aWhole network"
+    Lore:
+      - "&7The ban applies everywhere."
+      - ""
+      - "&eClick to select"
+  Scope_Server:
+    Material: "CHEST"
+    Name: "&aOne server or group"
+    Lore:
+      - "&7Current: &f{scope}"
+      - ""
+      - "&eClick to choose"
+  # Duration controls only appear for temporary bans.
+  Duration_Display_Slot: 31
+  Duration_Display:
+    Material: "CLOCK"
+    Name: "&eDuration: &f{duration}"
+    Lore:
+      - "&7Use the buttons around to adjust it."
+  Days_Minus_Slot: 29
+  Days_Plus_Slot: 30
+  Hours_Minus_Slot: 32
+  Hours_Plus_Slot: 33
+  Days_Minus:
+    Material: "RED_STAINED_GLASS_PANE"
+    Name: "&c- {step} day(s)"
+    Lore: []
+  Days_Plus:
+    Material: "LIME_STAINED_GLASS_PANE"
+    Name: "&a+ {step} day(s)"
+    Lore: []
+  Hours_Minus:
+    Material: "RED_STAINED_GLASS_PANE"
+    Name: "&c- {step} hour(s)"
+    Lore: []
+  Hours_Plus:
+    Material: "LIME_STAINED_GLASS_PANE"
+    Name: "&a+ {step} hour(s)"
+    Lore: []
+  # Cycles how much one click changes (1, 2, 5, 10, 20).
+  Quantity_Slot: 47
+  # Quick choices: the reason default first, then its ladder steps and common lengths.
+  Preset_Slots: [37, 38, 39, 40, 41, 42, 43]
+  Preset:
+    Material: "PAPER"
+    Name: "&f{duration}"
+    Lore:
+      - "&7Click to use this duration"
+  Preset_Default:
+    Material: "NETHER_STAR"
+    Name: "&fReason default"
+    Lore:
+      - "&7Use the reason's own duration"
+      - "&7or its escalation ladder."
+  Continue_Slot: 49
+  Continue:
+    Material: "EMERALD"
+    Name: "&aContinue"
+    Lore:
+      - "&7Review and confirm."
+
+# Choosing the server or group for a server ban.
+Servers:
+  Title: "Choose a server"
+  Size: 54
+  Slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+  Server:
+    Material: "GRASS_BLOCK"
+    Name: "&f{name}"
+    Lore:
+      - "&7Server"
+      - ""
+      - "&eClick to select"
+  Group:
+    Material: "ENDER_CHEST"
+    Name: "&6{name}"
+    Lore:
+      - "&7Server group"
+      - ""
+      - "&eClick to select"
+
+# Final step.
+Confirm:
+  Title: "Confirm {action}"
+  Size: 27
+  Summary_Slot: 4
+  Summary:
+    Material: "BOOK"
+    Name: "&e{target}"
+    Lore:
+      - "&7Action: &f{action}"
+      - "&7Where: &f{scope}"
+      - "&7Duration: &f{duration}"
+      - "&7Reason: &f{reason}"
+      - "&7Note: &f{note}"
+  Note_Slot: 11
+  Note:
+    Material: "WRITABLE_BOOK"
+    Name: "&eAdd a note"
+    Lore:
+      - "&7Optional text only staff can see."
+      - ""
+      - "&eClick, then type in chat"
+  Confirm_Slot: 13
+  Confirm:
+    Material: "LIME_CONCRETE"
+    Name: "&a&lConfirm"
+    Lore:
+      - "&7Apply this punishment now."
+  Cancel_Slot: 15
+  Cancel:
+    Material: "RED_CONCRETE"
+    Name: "&c&lCancel"
+    Lore:
+      - "&7Close without doing anything."
+  Note_Prompt: "&eType the note in chat. Type &fcancel &eto abort, or &f- &eto clear it."
+  Note_Saved: "&aNote saved."
+
+# /history
+History:
+  Title: "History of {target}"
+  Size: 54
+  Slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+  Active:
+    Material: "LIME_CONCRETE"
+    Name: "&a{type} &8#{id}"
+    Lore:
+      - "&7Where: &f{scope}"
+      - "&7Reason: &f{reason}"
+      - "&7By: &f{actor}"
+      - "&7Given: &f{created}"
+      - "&7Ends: {expires}"
+      - ""
+      - "{hint}"
+  Expired:
+    Material: "GRAY_CONCRETE"
+    Name: "&7{type} &8#{id} &7(expired)"
+    Lore:
+      - "&7Where: &f{scope}"
+      - "&7Reason: &f{reason}"
+      - "&7By: &f{actor}"
+      - "&7Given: &f{created}"
+      - "&7Ended: &f{expires}"
+      - ""
+      - "{hint}"
+  Revoked:
+    Material: "RED_CONCRETE"
+    Name: "&c{type} &8#{id} &c(revoked)"
+    Lore:
+      - "&7Where: &f{scope}"
+      - "&7Reason: &f{reason}"
+      - "&7By: &f{actor}"
+      - "&7Given: &f{created}"
+      - "&7Revoked by: &f{revoked_by}"
+      - "&7Revoked: &f{revoked_at}"
+      - ""
+      - "{hint}"
+  Kick:
+    Material: "YELLOW_CONCRETE"
+    Name: "&e{type} &8#{id}"
+    Lore:
+      - "&7Reason: &f{reason}"
+      - "&7By: &f{actor}"
+      - "&7Given: &f{created}"
+      - ""
+      - "{hint}"
+  # Replaces {hint} in the lines above; the detail view leaves it empty.
+  Hint: "&eClick for details"
+  Empty_Message: "&7{target} has no punishments on record."
+
+# One punishment from the history.
+Detail:
+  Title: "Punishment #{id}"
+  Size: 27
+  Info_Slot: 4
+  Revoke_Slot: 11
+  Revoke:
+    Material: "BARRIER"
+    Name: "&c&lRevoke"
+    Lore:
+      - "&7Pardon / remove this punishment."
+      - ""
+      - "&eShift-click to revoke"
+  Copy_Slot: 15
+  Copy:
+    Material: "PAPER"
+    Name: "&eCopy ID"
+    Lore:
+      - "&7Puts a clickable copy link in chat."
+      - ""
+      - "&eClick"
+  Copy_Message: "&7Punishment ID &e#{id} &8- &bclick here to copy"
+  # Added to the details when the punishment has a staff note.
+  Note_Line: "&7Staff note: &f{note}"
+
+Version: 1

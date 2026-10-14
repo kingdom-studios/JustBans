@@ -37,6 +37,12 @@ permissions:
   justbans.check:
     description: View a player's active punishments
     default: op
+  justbans.gui:
+    description: Open the punishment menu (/punish)
+    default: op
+  justbans.history:
+    description: Browse punishment history (/history)
+    default: op
   justbans.admin:
     description: Reload JustBans
     default: op

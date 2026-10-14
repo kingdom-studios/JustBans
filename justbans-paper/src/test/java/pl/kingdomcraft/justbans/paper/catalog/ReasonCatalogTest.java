@@ -43,6 +43,15 @@ class ReasonCatalogTest {
 	}
 
 	@Test
+	void allReturnsTheUsableReasonsInOrder() {
+		final ReasonCatalog catalog = new ReasonCatalog();
+		catalog.replace(List.of(reason("b", true, PunishmentKind.BAN), reason("off", false, PunishmentKind.BAN), reason("a", true, PunishmentKind.BAN)));
+
+		assertEquals(List.of("b", "a"), catalog.all().stream().map(ReasonDefinition::id).toList());
+		assertThrows(UnsupportedOperationException.class, () -> catalog.all().clear());
+	}
+
+	@Test
 	void disabledReasonsAreNotUsable() {
 		final ReasonCatalog catalog = new ReasonCatalog();
 		catalog.replace(List.of(reason("on", true, PunishmentKind.BAN), reason("off", false, PunishmentKind.BAN)));
