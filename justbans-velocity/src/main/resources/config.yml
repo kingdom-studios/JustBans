@@ -1,0 +1,70 @@
+# JustBans for Velocity - main configuration.
+# Changes to this file need a proxy restart. reasons.yml can be reloaded with /jbproxy reload.
+
+# Unique id of this node in Redis messages and the events table. Must differ from every Paper server's id.
+node-id: velocity-1
+
+# REQUIRED. Shared secret used to sign every Redis message (HMAC-SHA256). At least 16 characters.
+# Use the same value on all JustBans nodes and in the web panel, and keep it private.
+web-secret: ""
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: justbans
+  user: justbans
+  password: ""
+  pool-size: 8
+  connection-timeout-ms: 10000
+  # Extra JDBC URL parameters, e.g. { useSsl: "true" }
+  properties: {}
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  user: ""
+  password: ""
+  ssl: false
+  database: 0
+  # Prefix for channels and keys; lets several networks share one Redis.
+  prefix: "justbans:"
+  connect-timeout-ms: 5000
+
+# Commands sent by the web panel over Redis (issue a ban, pardon, ...).
+web-commands:
+  enabled: true
+  # Commands whose timestamp differs from this node's clock by more than this are rejected.
+  max-skew-seconds: 30
+
+# What to do at login when the database cannot be reached.
+#   allow - let the player in (keeps the network up, bans are not checked)
+#   deny  - refuse the login (safer, but a database outage locks everyone out)
+on-database-error: allow
+
+# Record an event (for the web panel) whenever a banned player tries to join.
+join-denied-events: true
+
+# How long a player's bans stay cached when no event refreshes them. Events normally refresh instantly.
+ban-cache-seconds: 60
+
+# How often to retry publishing queued events when Redis was unreachable.
+outbox-interval-ms: 2000
+
+# Server groups for group bans: velocity.toml server name -> group. Servers not listed have no group.
+server-groups: {}
+#  skyblock-1: skyblock
+#  skyblock-2: skyblock
+
+# Where banned players are sent when they cannot stay on their current or default server.
+# Tried in order; if none is allowed, any other registered server is tried.
+fallback-servers:
+  - lobby
+
+date-format: "dd.MM.yyyy HH:mm"
+time-zone: UTC
+
+# MiniMessage. <server> is available in server-banned.
+messages:
+  database-error: "<red>We could not verify your account right now. Please try again in a moment."
+  server-banned: "<red>You are banned from <white><server></white>."
+  no-fallback: "<red>You are banned from this server and there is no other server to send you to."

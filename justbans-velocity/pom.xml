@@ -16,6 +16,7 @@
 
     <properties>
         <velocity.version>3.4.0-SNAPSHOT</velocity.version>
+        <configurate.version>4.2.0</configurate.version>
     </properties>
 
     <repositories>
@@ -36,6 +37,33 @@
             <version>${velocity.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Provided by Velocity at runtime; "provided" scope in justbans-common is not transitive, so declare it here. -->
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-minimessage</artifactId>
+        </dependency>
+
+        <!-- YAML config. Shaded and relocated so it cannot clash with other plugins. -->
+        <dependency>
+            <groupId>org.spongepowered</groupId>
+            <artifactId>configurate-yaml</artifactId>
+            <version>${configurate.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-serializer-plain</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -53,6 +81,10 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -108,6 +140,18 @@
                         <relocation>
                             <pattern>com.github.benmanes.caffeine</pattern>
                             <shadedPattern>${shade.prefix}.caffeine</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.spongepowered.configurate</pattern>
+                            <shadedPattern>${shade.prefix}.configurate</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.yaml.snakeyaml</pattern>
+                            <shadedPattern>${shade.prefix}.snakeyaml</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>io.leangen.geantyref</pattern>
+                            <shadedPattern>${shade.prefix}.geantyref</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>com.google.gson</pattern>

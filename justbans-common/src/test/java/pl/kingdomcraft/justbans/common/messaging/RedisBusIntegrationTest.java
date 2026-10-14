@@ -325,6 +325,42 @@ class RedisBusIntegrationTest {
 	}
 
 	@Test
+	void hashHelpersMaintainTheOnlineDirectory() throws Exception {
+		final RedisBus bus = bus("a");
+		final String key = bus.channels().online();
+
+		assertEquals(config.prefix() + "online", key);
+		assertTrue(bus.hashGetAll(key).isEmpty());
+
+		bus.hashPut(key, "u1", "{\"name\":\"A\",\"server\":\"lobby\"}");
+		bus.hashPut(key, "u2", "{}");
+		bus.hashPut(key, "u1", "{\"name\":\"A\",\"server\":\"survival\"}");
+		assertEquals(2, bus.hashGetAll(key).size());
+		assertTrue(bus.hashGetAll(key).get("u1").contains("survival"));
+
+		bus.hashRemove(key, "u2");
+		bus.hashRemove(key, "missing");
+		assertEquals(List.of("u1"), List.copyOf(bus.hashGetAll(key).keySet()));
+
+		bus.hashReplace(key, java.util.Map.of("x", "1", "y", "2"));
+		assertEquals(java.util.Map.of("x", "1", "y", "2"), bus.hashGetAll(key));
+
+		bus.hashReplace(key, java.util.Map.of());
+		assertTrue(bus.hashGetAll(key).isEmpty());
+	}
+
+	@Test
+	void hashHelpersFailCleanlyWithoutRedis() {
+		final RedisBus dead = new RedisBus(new RedisConfig("127.0.0.1", 1, null, null, false, 0, 300, "x:"), new HmacSigner(SECRET), "n", Clock.systemUTC(), LOGGER);
+		buses.add(dead);
+
+		assertThrows(BusException.class, () -> dead.hashPut("k", "f", "v"));
+		assertThrows(BusException.class, () -> dead.hashRemove("k", "f"));
+		assertThrows(BusException.class, () -> dead.hashReplace("k", java.util.Map.of()));
+		assertThrows(BusException.class, () -> dead.hashGetAll("k"));
+	}
+
+	@Test
 	void closeStopsTheSubscriberThread() throws Exception {
 		final RedisBus bus = bus("a");
 		assertTrue(subscriberThreads() >= 1);

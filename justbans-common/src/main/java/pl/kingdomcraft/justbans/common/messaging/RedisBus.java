@@ -244,6 +244,56 @@ public final class RedisBus implements AutoCloseable {
 	}
 
 	// ------------------------------------------------------------------------------------------
+	// Hash helpers (the "online players" directory)
+	// ------------------------------------------------------------------------------------------
+
+	/** @throws BusException if Redis is unreachable */
+	public void hashPut(String key, String field, String value) {
+		try (Jedis jedis = this.publishPool.getResource()) {
+			jedis.hset(key, field, value);
+
+		} catch (final RuntimeException ex) {
+			throw new BusException("Could not write " + key + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	/** @throws BusException if Redis is unreachable */
+	public void hashRemove(String key, String field) {
+		try (Jedis jedis = this.publishPool.getResource()) {
+			jedis.hdel(key, field);
+
+		} catch (final RuntimeException ex) {
+			throw new BusException("Could not write " + key + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	/** Atomically replaces the whole hash (an empty map just deletes it). */
+	public void hashReplace(String key, Map<String, String> entries) {
+		try (Jedis jedis = this.publishPool.getResource()) {
+			final redis.clients.jedis.Transaction transaction = jedis.multi();
+
+			transaction.del(key);
+
+			if (!entries.isEmpty())
+				transaction.hset(key, entries);
+
+			transaction.exec();
+
+		} catch (final RuntimeException ex) {
+			throw new BusException("Could not write " + key + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	public Map<String, String> hashGetAll(String key) {
+		try (Jedis jedis = this.publishPool.getResource()) {
+			return jedis.hgetAll(key);
+
+		} catch (final RuntimeException ex) {
+			throw new BusException("Could not read " + key + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
 	// Subscriber thread
 	// ------------------------------------------------------------------------------------------
 

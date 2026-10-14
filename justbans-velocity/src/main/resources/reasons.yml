@@ -1,0 +1,70 @@
+# JustBans reasons. Admins use the short id: /tempban Notch cheats
+# Text is MiniMessage (https://docs.advntr.dev/minimessage/format.html). Reload with /jbproxy reload.
+#
+# Placeholders (inserted as plain text, so players cannot inject formatting):
+#   <target> <actor> <reason> <id> <type> <type_past> <scope> <server> <created> <expires>
+#   <remaining> <duration> <warn_count>
+#
+# Templates: ban-screen, server-ban-message, kick-screen, warn-message, broadcast, staff-alert
+#
+# Reason keys:
+#   display   - text stored with the punishment and shown as <reason>
+#   types     - allowed: BAN, TEMPBAN, SERVER_BAN, SERVER_TEMPBAN, WARN, KICK
+#   duration  - default for temporary types when no duration is typed (30d, 1d12h, 90m ...)
+#   ladder    - optional escalation by number of earlier punishments with this reason.
+#               Steps: a duration (temp ban), perm (permanent ban), WARN or KICK. The last step repeats.
+#   icon      - item shown in the punishment GUI
+#   templates - optional per-reason overrides of any template
+
+defaults:
+  templates:
+    ban-screen:
+      - "<red><bold>You are banned from this network</bold></red>"
+      - ""
+      - "<gray>Reason: <white><reason></white>"
+      - "<gray>Banned by: <white><actor></white>"
+      - "<gray>Expires: <white><expires></white> <dark_gray>(<remaining>)</dark_gray>"
+      - ""
+      - "<gray>Appeal with punishment ID <yellow>#<id></yellow>"
+    server-ban-message:
+      - "<red>You are banned from <white><server></white> <gray>(<remaining>)</gray>: <white><reason></white> <dark_gray>#<id>"
+    kick-screen:
+      - "<red>You were kicked"
+      - ""
+      - "<gray>Reason: <white><reason></white>"
+    warn-message:
+      - "<gold>You have been warned: <white><reason></white> <gray>(<warn_count> active)"
+    broadcast:
+      - "<red><target></red> <gray>was <type_past> by <red><actor></red> <gray>for <white><reason></white><gray>."
+    staff-alert:
+      - "<dark_gray>[JB]</dark_gray> <gray><actor> <white>-></white> <target>: <type> <scope> <duration> (<reason>) <dark_gray>#<id>"
+
+reasons:
+  cheats:
+    display: "Cheating / hacked client"
+    types: [TEMPBAN, BAN, SERVER_TEMPBAN, SERVER_BAN]
+    duration: 30d
+    ladder: [7d, 30d, perm]
+    icon: DIAMOND_SWORD
+    templates:
+      ban-screen:
+        - "<dark_red><bold>Cheating detected</bold></dark_red>"
+        - ""
+        - "<gray>Reason: <white><reason></white>"
+        - "<gray>Expires: <white><expires></white> <dark_gray>(<remaining>)</dark_gray>"
+        - "<gray>Appeal ID: <yellow>#<id></yellow>"
+  spam:
+    display: "Spamming chat"
+    types: [WARN, KICK, TEMPBAN]
+    duration: 1h
+    icon: PAPER
+  toxicity:
+    display: "Toxic behaviour"
+    types: [WARN, TEMPBAN]
+    ladder: [WARN, WARN, 1d, 7d]
+    icon: TNT
+  griefing:
+    display: "Griefing"
+    types: [TEMPBAN, BAN, SERVER_TEMPBAN, SERVER_BAN]
+    duration: 14d
+    icon: LAVA_BUCKET

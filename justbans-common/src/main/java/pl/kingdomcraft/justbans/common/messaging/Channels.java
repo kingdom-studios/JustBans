@@ -29,6 +29,11 @@ public record Channels(String prefix) {
 		return prefix + "command-results";
 	}
 
+	/** Hash {@code uuid -> {"name","server"}} of players currently online, maintained by Velocity. */
+	public String online() {
+		return prefix + "online";
+	}
+
 	public String[] all() {
 		return new String[] { events(), commands(), commandResults() };
 	}
