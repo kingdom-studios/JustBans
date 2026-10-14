@@ -60,6 +60,7 @@ public final class Database implements AutoCloseable {
 	public <T> T transaction(SqlFunction<T> function) throws SQLException {
 		try (Connection connection = this.getConnection()) {
 			connection.setAutoCommit(false);
+			connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
 
 			try {
 				final T result = function.apply(connection);
@@ -85,7 +86,12 @@ public final class Database implements AutoCloseable {
 		return this.supplyAsync(() -> this.query(function));
 	}
 
-	private <T> CompletableFuture<T> supplyAsync(SqlCall<T> call) {
+	/**
+	 * Runs blocking JDBC work on the database executor without holding a connection itself.
+	 * Use this (not {@link #queryAsync}) for work that borrows its own connections, otherwise a small
+	 * pool can deadlock waiting on itself.
+	 */
+	public <T> CompletableFuture<T> supplyAsync(SqlCall<T> call) {
 		return CompletableFuture.supplyAsync(() -> {
 			try {
 				return call.call();
@@ -96,7 +102,7 @@ public final class Database implements AutoCloseable {
 	}
 
 	@FunctionalInterface
-	private interface SqlCall<T> {
+	public interface SqlCall<T> {
 		T call() throws SQLException;
 	}
 

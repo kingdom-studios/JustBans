@@ -56,6 +56,11 @@ public record Punishment(
 		}
 	}
 
+	public Punishment withId(long newId) {
+		return new Punishment(newId, publicId, type, scope, targetUuid, targetName, actor, reasonId, reasonText, note,
+				createdAt, expiresAt, originServer, silent, ladderStep, revocation);
+	}
+
 	public boolean isPermanent() {
 		return expiresAt == null;
 	}

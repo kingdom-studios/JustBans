@@ -1,5 +1,6 @@
 package pl.kingdomcraft.justbans.common.database;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,7 +42,13 @@ public record DatabaseConfig(
 		final StringBuilder url = new StringBuilder("jdbc:mariadb://").append(host).append(':').append(port).append('/').append(database);
 		char separator = '?';
 
-		for (final Map.Entry<String, String> entry : properties.entrySet()) {
+		// Timestamps are always stored and read as UTC regardless of the JVM or server time zone.
+		final Map<String, String> effective = new LinkedHashMap<>();
+		effective.put("connectionTimeZone", "UTC");
+		effective.put("forceConnectionTimeZoneToSession", "true");
+		effective.putAll(properties);
+
+		for (final Map.Entry<String, String> entry : effective.entrySet()) {
 			url.append(separator).append(entry.getKey()).append('=').append(entry.getValue());
 			separator = '&';
 		}
