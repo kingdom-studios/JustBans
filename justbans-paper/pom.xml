@@ -55,6 +55,19 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Offline exemption checks. Provided by the LuckPerms plugin at runtime (soft dependency). -->
+        <dependency>
+            <groupId>net.luckperms</groupId>
+            <artifactId>api</artifactId>
+            <version>5.4</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>${foundation.path}</groupId>
             <artifactId>Foundation</artifactId>
@@ -84,6 +97,10 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <executions>
                     <execution>
@@ -103,6 +120,7 @@
                             <include>org.mariadb.jdbc:mariadb-java-client</include>
                             <include>redis.clients:jedis</include>
                             <include>org.apache.commons:commons-pool2</include>
+                            <include>org.json:json</include>
                             <include>com.github.ben-manes.caffeine:caffeine</include>
                             <include>com.google.code.gson:gson</include>
                         </includes>
@@ -139,6 +157,10 @@
                         <relocation>
                             <pattern>redis.clients</pattern>
                             <shadedPattern>${shade.prefix}.redis</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.json</pattern>
+                            <shadedPattern>${shade.prefix}.json</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>org.apache.commons.pool2</pattern>

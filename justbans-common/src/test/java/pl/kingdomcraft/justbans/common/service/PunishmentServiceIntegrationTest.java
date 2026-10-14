@@ -279,6 +279,27 @@ class PunishmentServiceIntegrationTest {
 	}
 
 	@Test
+	void exemptionCheckersCanComparetheActorWithTheTarget() throws Exception {
+		final UUID target = UUID.randomUUID();
+		final UUID boss = UUID.randomUUID();
+		final PunishmentService weighted = new PunishmentService(database, "weighted", clock, new ExemptionChecker() {
+			@Override
+			public boolean isExempt(UUID t, PunishmentType type) {
+				return false;
+			}
+
+			@Override
+			public boolean isExempt(Actor actor, UUID t, PunishmentType type) {
+				return actor.uuid() == null || !actor.uuid().equals(boss); // only "boss" may punish this target
+			}
+		});
+
+		assertEquals(ErrorCode.TARGET_EXEMPT, weighted.issue(PunishmentRequest.builder(PunishmentKind.BAN, target, "T", ADMIN).reasonId("cheats").build()).get().error());
+		assertEquals(ErrorCode.TARGET_EXEMPT, weighted.issue(PunishmentRequest.builder(PunishmentKind.BAN, target, "T", Actor.console()).reasonId("cheats").build()).get().error());
+		assertTrue(weighted.issue(PunishmentRequest.builder(PunishmentKind.BAN, target, "T", Actor.player(boss, "Boss")).reasonId("cheats").build()).get().isOk());
+	}
+
+	@Test
 	void exemptPlayersCannotBePunished() throws Exception {
 		final UUID target = UUID.randomUUID();
 		exempt = Set.of(target);

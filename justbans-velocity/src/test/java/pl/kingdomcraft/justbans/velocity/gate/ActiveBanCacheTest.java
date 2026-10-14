@@ -17,6 +17,7 @@ import pl.kingdomcraft.justbans.common.domain.Punishment;
 import pl.kingdomcraft.justbans.common.domain.PunishmentType;
 import pl.kingdomcraft.justbans.common.domain.Scope;
 
+
 class ActiveBanCacheTest {
 
 	private final UUID player = UUID.randomUUID();
@@ -24,7 +25,7 @@ class ActiveBanCacheTest {
 
 	@Test
 	void loadsOnceThenServesFromCache() throws Exception {
-		final List<Punishment> bans = List.of(BanMatcherTest.p(PunishmentType.BAN, Scope.network(), null, false));
+		final List<Punishment> bans = List.of(TestBans.p(PunishmentType.BAN, Scope.network(), null, false));
 		final ActiveBanCache cache = new ActiveBanCache(uuid -> {
 			loads.incrementAndGet();
 			return bans;

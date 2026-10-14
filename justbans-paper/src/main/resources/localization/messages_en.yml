@@ -190,4 +190,49 @@ No_Permission: "&cNo permission: {permission}"
 # -------------------------------------------------------------------------------------------------
 # Internal versioning number
 # -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# JustBans staff messages. Placeholders are written like {target}.
+# -------------------------------------------------------------------------------------------------
+Punish:
+  Banned: "&aBanned &f{target} &7({scope}, {expires}&7) &8- &7ID &e#{id}"
+  Warned: "&aWarned &f{target} &8- &7ID &e#{id}"
+  Kicked: "&aKicked &f{target} &8- &7ID &e#{id}"
+  Pardoned: "&aPardoned &f{target} &8- &7ID &e#{id}"
+  Unwarned: "&aRemoved the last warn of &f{target} &8- &7ID &e#{id}"
+  Cannot_Punish_Self: "&cYou cannot do that to yourself."
+  Not_Online: "&c{target} is not online on the network."
+  Unknown_Reason: "&cUnknown reason '{input}'. Available: &f{reasons}"
+  Custom_Reason_Denied: "&cYou may only use predefined reasons: &f{reasons}"
+  Reason_Required: "&cSpecify a reason."
+  Duration_Required: "&cSpecify a duration such as 7d, 12h or 1d12h."
+  Invalid_Scope: "&cUse either server:<name> or group:<name>, not both, and give a name."
+  Starting: "&cJustBans is still starting, or failed to start (see the console). Try again in a moment."
+  Scope_Network: "network"
+  Scope_Server: "server {target}"
+  Scope_Group: "group {target}"
+  Expires_Never: "&cpermanent"
+  Expires_In: "&7in &f{remaining}"
+
+# What the service reports when it refuses a request. {message} is the detail it gives.
+Errors:
+  Unknown_Player: "&c{message}"
+  Unknown_Reason: "&c{message}"
+  Reason_Type_Not_Allowed: "&c{message}"
+  Already_Banned: "&c{message} &7Use -f to replace it."
+  Not_Banned: "&c{message}"
+  Unknown_Punishment: "&c{message}"
+  Not_Active: "&c{message}"
+  Target_Exempt: "&c{message}"
+  Invalid_Duration: "&c{message}"
+  Invalid_Request: "&c{message}"
+  Unknown_Server: "&c{message}"
+  Internal: "&cSomething went wrong, see the console."
+
+Check:
+  Header: "&8&m   &r &6Punishments of &f{target} &8&m   "
+  None: "&aNo active punishments."
+  Ban_Line: " &c✖ &fBan &e#{id} &8| &7{scope} &8| &f{reason} &8| &7by {actor} &8| {expires}"
+  Warn_Line: " &6⚠ &fWarn &e#{id} &8| &f{reason} &8| &7by {actor} &8| {expires}"
+  Warn_Total: "&7Active warns: &f{count}"
+
 Version: 1

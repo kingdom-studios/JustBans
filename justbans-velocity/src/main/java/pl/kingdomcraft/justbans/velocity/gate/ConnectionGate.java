@@ -22,6 +22,7 @@ import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 
 import pl.kingdomcraft.justbans.common.domain.Punishment;
+import pl.kingdomcraft.justbans.common.service.BanMatcher;
 import pl.kingdomcraft.justbans.velocity.config.PluginConfig;
 import pl.kingdomcraft.justbans.velocity.enforce.ScreenRenderer;
 

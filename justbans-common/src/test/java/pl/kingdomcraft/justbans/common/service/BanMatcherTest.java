@@ -1,4 +1,4 @@
-package pl.kingdomcraft.justbans.velocity.gate;
+package pl.kingdomcraft.justbans.common.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,12 +14,12 @@ import pl.kingdomcraft.justbans.common.domain.Punishment;
 import pl.kingdomcraft.justbans.common.domain.PunishmentType;
 import pl.kingdomcraft.justbans.common.domain.Scope;
 
-class BanMatcherTest {
+public class BanMatcherTest {
 
 	private static final Instant NOW = Instant.parse("2026-10-14T12:00:00Z");
 	private static long ids;
 
-	static Punishment p(PunishmentType type, Scope scope, Instant expires, boolean revoked) {
+	public static Punishment p(PunishmentType type, Scope scope, Instant expires, boolean revoked) {
 		return new Punishment(++ids, "ID" + ids, type, scope, UUID.randomUUID(), "T", Actor.console(), null, "r", null, NOW.minusSeconds(100), expires, "proxy", false, null,
 				revoked ? new Punishment.Revocation(NOW.minusSeconds(1), Actor.console(), null) : null);
 	}

@@ -14,4 +14,35 @@ api-version: "26.2"
 softdepend: [AuthMe, BanManager, BungeeChatAPI, CMI, DiscordSRV, Factions, Feudal, ItemsAdder, Essentials, LegacyFactions, Lands, LuckPerms, Multiverse-Core, MVdWPlaceholderAPI, MythicMobs, mcMMO, Nicky, PlaceholderAPI, ProtocolLib, SimpleClans, Towny, TownyChat, Vault, WorldEdit]
 # The commands are built at runtime so you can change them easily within the settings.
 # Do not change anything in here, you will break the plugin and get no support.
-commands:  
+commands:
+permissions:
+  justbans.ban:
+    description: Permanently ban players
+    default: op
+  justbans.tempban:
+    description: Temporarily ban players
+    default: op
+  justbans.warn:
+    description: Warn players
+    default: op
+  justbans.unwarn:
+    description: Remove a player's last warn
+    default: op
+  justbans.kick:
+    description: Kick players from the network
+    default: op
+  justbans.unban:
+    description: Pardon banned players
+    default: op
+  justbans.check:
+    description: View a player's active punishments
+    default: op
+  justbans.admin:
+    description: Reload JustBans
+    default: op
+  justbans.reason.custom:
+    description: Use free-text reasons instead of predefined reason ids
+    default: op
+  justbans.exempt:
+    description: Cannot be punished
+    default: false

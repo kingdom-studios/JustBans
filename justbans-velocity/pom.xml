@@ -102,6 +102,8 @@
                     <artifactSet>
                         <excludes>
                             <exclude>com.velocitypowered:*</exclude>
+                            <!-- Velocity injects its own org.slf4j.Logger; a second copy in this jar would be a different class. -->
+                            <exclude>org.slf4j:slf4j-api</exclude>
                         </excludes>
                     </artifactSet>
                     <filters>
@@ -132,6 +134,10 @@
                         <relocation>
                             <pattern>redis.clients</pattern>
                             <shadedPattern>${shade.prefix}.redis</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.json</pattern>
+                            <shadedPattern>${shade.prefix}.json</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>org.apache.commons.pool2</pattern>

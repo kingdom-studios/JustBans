@@ -101,7 +101,7 @@ public final class PunishmentService {
 
 		final Plan plan = planned.value();
 
-		if (this.exemptions.isExempt(request.targetUuid(), plan.type))
+		if (this.exemptions.isExempt(request.actor(), request.targetUuid(), plan.type))
 			return Result.error(ErrorCode.TARGET_EXEMPT, request.targetName() + " cannot be punished");
 
 		// The lock needs a row. Create it in its own statement so concurrent first-time punishments cannot deadlock.

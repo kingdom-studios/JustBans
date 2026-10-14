@@ -1,4 +1,4 @@
-package pl.kingdomcraft.justbans.velocity.gate;
+package pl.kingdomcraft.justbans.common.service;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -9,7 +9,7 @@ import pl.kingdomcraft.justbans.common.domain.Punishment;
 import pl.kingdomcraft.justbans.common.domain.PunishmentType;
 import pl.kingdomcraft.justbans.common.domain.ScopeType;
 
-/** Decides which cached bans apply to a connection attempt. Pure functions, no Velocity types. */
+/** Decides which bans apply to a connection attempt. Pure functions, shared by the Velocity gates and the Paper fallback gate. */
 public final class BanMatcher {
 
 	/** Permanent bans outrank temporary ones; among temporary ones the longest wins, so the screen shows the real end. */

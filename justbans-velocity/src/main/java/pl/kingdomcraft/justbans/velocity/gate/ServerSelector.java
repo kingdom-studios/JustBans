@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import pl.kingdomcraft.justbans.common.domain.Punishment;
+import pl.kingdomcraft.justbans.common.service.BanMatcher;
 
 /** Picks a server a banned player may be sent to. Works on names only so it needs no Velocity types. */
 public final class ServerSelector {

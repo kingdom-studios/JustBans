@@ -75,6 +75,90 @@ Log_Lag_Over_Milis: 100
 Debug: []
 
 # -------------------------------------------------------------------------------------------------
+# This server. The name MUST match the server name in the proxy's velocity.toml, because server bans
+# are stored by that name.
+# -------------------------------------------------------------------------------------------------
+Server:
+  Name: "survival"
+
+  # Optional group this server belongs to (must match server-groups in the proxy's config.yml).
+  # Group bans on this group also apply here. Leave empty for none.
+  Group: ""
+
+# -------------------------------------------------------------------------------------------------
+# The shared MariaDB database (the same one the proxy uses).
+# -------------------------------------------------------------------------------------------------
+Database:
+  Host: "127.0.0.1"
+  Port: 3306
+  Name: "justbans"
+  User: "justbans"
+  Password: ""
+  Pool_Size: 6
+  Connection_Timeout_Millis: 10000
+
+# -------------------------------------------------------------------------------------------------
+# The shared Redis. Used to tell the proxy about new punishments instantly and to learn who is
+# online on the whole network. Redis is only a notifier: if it is down, punishments still work.
+# -------------------------------------------------------------------------------------------------
+Redis:
+  Host: "127.0.0.1"
+  Port: 6379
+  User: ""
+  Password: ""
+  Ssl: false
+  Database: 0
+  Prefix: "justbans:"
+  Connect_Timeout_Millis: 5000
+
+  # REQUIRED: at least 16 characters. Must be identical on the proxy and in the web panel.
+  # Every Redis message is signed with it.
+  Web_Secret: ""
+
+# -------------------------------------------------------------------------------------------------
+# Execute commands sent by the web panel on this server. Normally the proxy does this, so leave it
+# off unless you run no proxy-side handler.
+# -------------------------------------------------------------------------------------------------
+Web_Commands:
+  Enabled: false
+  Max_Skew_Seconds: 30
+
+# -------------------------------------------------------------------------------------------------
+# Punishment behaviour
+# -------------------------------------------------------------------------------------------------
+Punishments:
+
+  # The proxy normally keeps banned players out. When on, this server also checks every login itself
+  # as a safety net (for a failed proxy, or players connecting around it).
+  Local_Gate: true
+
+  # If the database cannot be reached during that check: Allow the player in, or Deny the login.
+  Gate_On_Database_Error: "Allow"
+
+  # Message shown by the local gate when the ban has no custom screen. MiniMessage.
+  # Placeholders: <target> <actor> <reason> <id> <expires> <remaining> <server> <scope>
+  Gate_Ban_Screen:
+    - "<red><bold>You are banned</bold></red>"
+    - ""
+    - "<gray>Reason: <white><reason></white>"
+    - "<gray>Expires: <white><expires></white> <dark_gray>(<remaining>)</dark_gray>"
+    - ""
+    - "<gray>Punishment ID: <yellow>#<id></yellow>"
+  Gate_Database_Error_Screen:
+    - "<red>We could not verify your account right now."
+    - "<gray>Please try again in a moment."
+
+  # When on, a player can only be punished by someone with a higher LuckPerms group weight
+  # (needs LuckPerms). Players with weight 0 are never protected by this.
+  Use_Weights: false
+
+  Date_Format_Pattern: "dd.MM.yyyy HH:mm"
+  Time_Zone: "UTC"
+
+  # How often queued events are retried when Redis was unreachable.
+  Outbox_Interval_Millis: 2000
+
+# -------------------------------------------------------------------------------------------------
 # Do not change this value, otherwise it will corrupt your plugin installation!
 # NB: Don't forget to keep this up-to-date with the getConfigVersion method in your Settings class. 
 # -------------------------------------------------------------------------------------------------

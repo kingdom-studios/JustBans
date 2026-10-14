@@ -257,6 +257,17 @@ public final class RedisBus implements AutoCloseable {
 		}
 	}
 
+	/** @return the value, or null if the field is absent
+	 * @throws BusException if Redis is unreachable */
+	public String hashGet(String key, String field) {
+		try (Jedis jedis = this.publishPool.getResource()) {
+			return jedis.hget(key, field);
+
+		} catch (final RuntimeException ex) {
+			throw new BusException("Could not read " + key + ": " + ex.getMessage(), ex);
+		}
+	}
+
 	/** @throws BusException if Redis is unreachable */
 	public void hashRemove(String key, String field) {
 		try (Jedis jedis = this.publishPool.getResource()) {

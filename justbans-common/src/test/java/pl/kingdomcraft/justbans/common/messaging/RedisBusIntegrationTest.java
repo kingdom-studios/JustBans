@@ -338,6 +338,9 @@ class RedisBusIntegrationTest {
 		assertEquals(2, bus.hashGetAll(key).size());
 		assertTrue(bus.hashGetAll(key).get("u1").contains("survival"));
 
+		assertTrue(bus.hashGet(key, "u1").contains("survival"));
+		assertNull(bus.hashGet(key, "nobody"));
+
 		bus.hashRemove(key, "u2");
 		bus.hashRemove(key, "missing");
 		assertEquals(List.of("u1"), List.copyOf(bus.hashGetAll(key).keySet()));

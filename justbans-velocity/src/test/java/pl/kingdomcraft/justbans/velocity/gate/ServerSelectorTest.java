@@ -15,6 +15,7 @@ import pl.kingdomcraft.justbans.common.domain.Punishment;
 import pl.kingdomcraft.justbans.common.domain.PunishmentType;
 import pl.kingdomcraft.justbans.common.domain.Scope;
 
+
 class ServerSelectorTest {
 
 	private static final Instant NOW = Instant.parse("2026-10-14T12:00:00Z");
@@ -22,7 +23,7 @@ class ServerSelectorTest {
 	private static final List<String> ALL = List.of("lobby", "survival", "skyblock-1", "skyblock-2");
 
 	private static Punishment ban(Scope scope) {
-		return BanMatcherTest.p(PunishmentType.BAN, scope, null, false);
+		return TestBans.p(PunishmentType.BAN, scope, null, false);
 	}
 
 	@Test
