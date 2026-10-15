@@ -43,6 +43,9 @@ permissions:
   justbans.history:
     description: Browse punishment history (/history)
     default: op
+  justbans.edit:
+    description: Change the expiry, reason or note of a punishment (/justbans edit)
+    default: op
   justbans.admin:
     description: Reload JustBans
     default: op

@@ -34,8 +34,9 @@
         <!-- Adventure is provided by Paper and Velocity at runtime and is never shaded. Its version is deliberately NOT managed
              here: dependencyManagement also overrides transitive versions, which pinned Paper's own (newer) Adventure back to
              this one and broke compilation. Only modules that have no platform API of their own (common) and Velocity declare
-             it, with this version. justbans-paper must not declare it: it takes Adventure from paper-api. -->
+             it, with this version. justbans-paper declares its own, newer, provided Adventure (paper.adventure.version). -->
         <adventure.version>4.25.0</adventure.version>
+        <bstats.version>3.2.1</bstats.version>
         <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 

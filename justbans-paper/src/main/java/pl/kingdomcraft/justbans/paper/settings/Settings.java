@@ -108,6 +108,56 @@ public final class Settings extends SimpleSettings {
 		}
 	}
 
+	/** Announcing expired bans and warns. A Redis lock lets one node at a time do the work, so every node may have this on. */
+	public static final class ExpirySweeper {
+
+		public static Boolean ENABLED;
+		public static Integer INTERVAL_SECONDS;
+
+		private static void init() {
+			setPathPrefix("Expiry_Sweeper");
+
+			ENABLED = getBoolean("Enabled");
+			INTERVAL_SECONDS = getInteger("Interval_Seconds");
+
+			Valid.checkBoolean(INTERVAL_SECONDS >= 5, "Expiry_Sweeper.Interval_Seconds must be at least 5");
+		}
+	}
+
+	/** Text of the PlaceholderAPI placeholders ({@code %justbans_warns%} and friends). */
+	public static final class Placeholders {
+
+		public static Integer REFRESH_SECONDS;
+		public static String NONE_TEXT;
+		public static String LOADING_TEXT;
+		public static String PERMANENT_TEXT;
+		public static String LAST_PUNISHMENT_FORMAT;
+
+		private static void init() {
+			setPathPrefix("Placeholders");
+
+			REFRESH_SECONDS = getInteger("Refresh_Seconds");
+			NONE_TEXT = getString("None_Text");
+			LOADING_TEXT = getString("Loading_Text");
+			PERMANENT_TEXT = getString("Permanent_Text");
+			LAST_PUNISHMENT_FORMAT = getString("Last_Punishment_Format");
+
+			Valid.checkBoolean(REFRESH_SECONDS >= 5, "Placeholders.Refresh_Seconds must be at least 5");
+		}
+	}
+
+	/** Anonymous bStats usage statistics. */
+	public static final class Statistics {
+
+		public static Boolean ENABLED;
+
+		private static void init() {
+			setPathPrefix("Statistics");
+
+			ENABLED = getBoolean("Enabled");
+		}
+	}
+
 	public static final class Punishments {
 
 		public static Boolean LOCAL_GATE;

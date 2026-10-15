@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "id": "a1f3c5d7-0000-4000-8000-000000000005",
+  "type": "UPDATE_PUNISHMENT",
+  "ts": 1767226100000,
+  "node": "web-1",
+  "payload": {
+    "requestId": "e5f6a7b8-6a1e-4f0e-9d58-7c2f5e8a1d36",
+    "actor": {
+      "name": "Web: alice",
+      "ref": "42"
+    },
+    "punishmentId": 4211,
+    "expiresAt": 1768435200000,
+    "reasonText": "Flying near spawn",
+    "note": null
+  },
+  "sig": "+lY0L65AwZrRaFYz8oUvkb6JZjQKXewubweADp/VehM="
+}

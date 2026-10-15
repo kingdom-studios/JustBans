@@ -27,10 +27,13 @@ BY_TYPE = {
     "ISSUE_PUNISHMENT": "issue-punishment.schema.json",
     "REVOKE_PUNISHMENT": "revoke-punishment.schema.json",
     "COMMAND_RESULT": "command-result.schema.json",
+    "UPDATE_PUNISHMENT": "update-punishment.schema.json",
     "PUNISHMENT_CREATED": "punishment-created.schema.json",
+    "PUNISHMENT_UPDATED": "punishment-updated.schema.json",
+    "PUNISHMENT_EXPIRED": "punishment-expired.schema.json",
 }
 # Events that carry the same {"punishment": {...}} payload as PUNISHMENT_CREATED.
-PUNISHMENT_EVENTS = {"PUNISHMENT_REVOKED", "PUNISHMENT_UPDATED", "PUNISHMENT_EXPIRED", "JOIN_DENIED"}
+PUNISHMENT_EVENTS = {"PUNISHMENT_REVOKED", "JOIN_DENIED"}
 
 
 def load_registry():

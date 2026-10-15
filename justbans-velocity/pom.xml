@@ -37,6 +37,12 @@
             <version>${velocity.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- Anonymous usage statistics (https://bstats.org). Shaded and relocated, as bStats requires. -->
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-velocity</artifactId>
+            <version>${bstats.version}</version>
+        </dependency>
 
         <!-- Provided by Velocity at runtime; "provided" scope in justbans-common is not transitive, so declare it here. -->
         <dependency>
@@ -128,6 +134,10 @@
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                     </transformers>
                     <relocations>
+                        <relocation>
+                            <pattern>org.bstats</pattern>
+                            <shadedPattern>${shade.prefix}.bstats</shadedPattern>
+                        </relocation>
                         <relocation>
                             <pattern>com.zaxxer.hikari</pattern>
                             <shadedPattern>${shade.prefix}.hikari</shadedPattern>

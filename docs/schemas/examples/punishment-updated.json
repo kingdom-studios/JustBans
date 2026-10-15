@@ -1,0 +1,49 @@
+{
+  "v": 1,
+  "id": "bb260029-82b9-367b-93a0-94a6dca03eca",
+  "type": "PUNISHMENT_UPDATED",
+  "ts": 1767226100060,
+  "node": "velocity-1",
+  "payload": {
+    "punishment": {
+      "id": 4211,
+      "publicId": "K7Q2M9XA",
+      "type": "BAN",
+      "scope": {
+        "type": "NETWORK",
+        "target": "*"
+      },
+      "target": {
+        "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5",
+        "name": "Notch"
+      },
+      "actor": {
+        "type": "WEB",
+        "ref": "42",
+        "name": "Web: alice"
+      },
+      "reason": {
+        "id": "cheats",
+        "text": "Flying near spawn"
+      },
+      "createdAt": 1767225600030,
+      "silent": false,
+      "originServer": "web",
+      "expiresAt": 1768435200000
+    },
+    "update": {
+      "by": {
+        "type": "WEB",
+        "ref": "42",
+        "name": "Web: alice"
+      },
+      "changed": [
+        "expiresAt",
+        "reasonText",
+        "note"
+      ]
+    }
+  },
+  "seq": 18844,
+  "sig": "oJZ1lNSgcX23Ueyme1k+fWVF8qui8CPE92yFQRc/zGk="
+}

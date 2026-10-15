@@ -34,6 +34,17 @@ class HmacSignerTest {
 		return new Envelope(1, "8d3c1c9e-0000-4000-8000-000000000001", "PUNISHMENT_CREATED", 1760430000123L, "velocity-1", 18842L, payload, null);
 	}
 
+	@Test
+	void nullValuesSurviveTheWireSoSignaturesStillVerify() throws Exception {
+		final JsonObject payload = JsonParser.parseString("{\"expiresAt\":null,\"note\":\"x\"}").getAsJsonObject();
+		final Envelope signed = signer.sign(new Envelope(1, "8d3c1c9e-0000-4000-8000-000000000002", "UPDATE_PUNISHMENT", 1760430000123L, "web-1", null, payload, null));
+
+		final Envelope received = Envelope.fromJson(signed.toJson());
+
+		assertTrue(received.payload().has("expiresAt"));
+		assertTrue(signer.verify(received));
+	}
+
 	/** The vectors printed in docs/redis-protocol.md and asserted by tools/web-client.py selftest. */
 	@Test
 	void matchesPublishedProtocolVectors() {

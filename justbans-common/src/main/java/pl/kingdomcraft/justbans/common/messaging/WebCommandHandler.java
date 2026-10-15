@@ -3,6 +3,7 @@ package pl.kingdomcraft.justbans.common.messaging;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,7 @@ import pl.kingdomcraft.justbans.common.service.PunishmentService;
 import pl.kingdomcraft.justbans.common.service.Result;
 import pl.kingdomcraft.justbans.common.service.RevokeRequest;
 import pl.kingdomcraft.justbans.common.service.TargetResolver;
+import pl.kingdomcraft.justbans.common.service.UpdateRequest;
 import pl.kingdomcraft.justbans.common.time.DurationParser;
 
 /**
@@ -81,6 +83,7 @@ public final class WebCommandHandler {
 
 		this.register("ISSUE_PUNISHMENT", this::issue);
 		this.register("REVOKE_PUNISHMENT", this::revoke);
+		this.register("UPDATE_PUNISHMENT", this::update);
 		this.register("PING", command -> {
 			final JsonObject pong = new JsonObject();
 			pong.addProperty("node", this.nodeId);
@@ -273,6 +276,27 @@ public final class WebCommandHandler {
 		}
 
 		return this.summarize(this.service.revokeBlocking(request));
+	}
+
+	/**
+	 * {@code UPDATE_PUNISHMENT}: {@code punishmentId} plus any of {@code expiresAt} (epoch milliseconds, or JSON {@code null}
+	 * for permanent), {@code reasonText} and {@code note} (JSON {@code null} or an empty string removes it). Fields that are
+	 * absent stay as they are.
+	 */
+	private Result<JsonObject> update(Envelope command) throws SQLException {
+		final JsonObject p = command.payload();
+		final UpdateRequest.Builder builder = UpdateRequest.builder(actor(p), number(p, "punishmentId"));
+
+		if (p.has("expiresAt"))
+			builder.expiresAt(p.get("expiresAt").isJsonNull() ? null : Instant.ofEpochMilli(number(p, "expiresAt")));
+
+		if (p.has("reasonText"))
+			builder.reasonText(requireString(p, "reasonText"));
+
+		if (p.has("note"))
+			builder.note(p.get("note").isJsonNull() ? "" : string(p, "note"));
+
+		return this.summarize(this.service.updateBlocking(builder.build()));
 	}
 
 	private Result<JsonObject> summarize(Result<Punishment> result) {

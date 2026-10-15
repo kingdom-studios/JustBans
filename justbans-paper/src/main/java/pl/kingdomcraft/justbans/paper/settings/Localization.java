@@ -63,6 +63,32 @@ public final class Localization extends SimpleLocalization {
 		}
 	}
 
+	/** {@code /justbans edit}. */
+	public static final class Edit {
+
+		public static String UPDATED_EXPIRY = "&aPunishment &e#{id} &7of &f{target} &aupdated: expires {expires}";
+		public static String UPDATED_REASON = "&aPunishment &e#{id} &7of &f{target} &aupdated: reason is now &f{reason}";
+		public static String UPDATED_NOTE = "&aPunishment &e#{id} &7of &f{target} &aupdated: staff note saved.";
+		public static String NOTE_REMOVED = "&aPunishment &e#{id} &7of &f{target} &aupdated: staff note removed.";
+		public static String NOT_FOUND = "&cNo punishment with id '{input}'. Use the id shown in /check or /history, for example K7Q2M9XA.";
+		public static String UNKNOWN_FIELD = "&cUnknown field '{input}'. Use duration, reason or note.";
+		public static String INVALID_DURATION = "&c{message} &7Use for example 7d, 12h, 1d12h or perm.";
+		public static String VALUE_REQUIRED = "&cGive a new value.";
+
+		private static void init() {
+			setPathPrefix("Edit");
+
+			UPDATED_EXPIRY = read("Updated_Expiry", UPDATED_EXPIRY);
+			UPDATED_REASON = read("Updated_Reason", UPDATED_REASON);
+			UPDATED_NOTE = read("Updated_Note", UPDATED_NOTE);
+			NOTE_REMOVED = read("Note_Removed", NOTE_REMOVED);
+			NOT_FOUND = read("Not_Found", NOT_FOUND);
+			UNKNOWN_FIELD = read("Unknown_Field", UNKNOWN_FIELD);
+			INVALID_DURATION = read("Invalid_Duration", INVALID_DURATION);
+			VALUE_REQUIRED = read("Value_Required", VALUE_REQUIRED);
+		}
+	}
+
 	public static final class Errors {
 
 		private static final Map<ErrorCode, String> BY_CODE = new EnumMap<>(ErrorCode.class);

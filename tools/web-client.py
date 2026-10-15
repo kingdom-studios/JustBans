@@ -32,6 +32,8 @@ Usage:
   python3 tools/web-client.py ban --player Notch --kind TEMPBAN --duration 7d --custom-reason "Griefing"
   python3 tools/web-client.py pardon --player Notch --reason "Appeal accepted" --actor-name "Web: alice"
   python3 tools/web-client.py pardon --punishment-id 1234 --actor-name "Web: alice"
+  python3 tools/web-client.py edit --punishment-id 1234 --actor-name "Web: alice" --in 14d --reason-text "Flying near spawn"
+  python3 tools/web-client.py edit --punishment-id 1234 --actor-name "Web: alice" --permanent --clear-note
 
 Exit codes: 0 success, 1 the plugin answered with status ERROR, 2 no answer in time, 3 bad usage / local failure.
 
@@ -363,6 +365,17 @@ def actor_object(args):
     return actor
 
 
+_UNIT_MS = {"s": 1000, "m": 60_000, "h": 3_600_000, "d": 86_400_000, "w": 7 * 86_400_000}
+
+
+def parse_duration_ms(text):
+    """Tiny duration parser for the --in convenience flag: 90m, 12h, 7d, 2w, 1d12h. (The plugin itself also knows mo and y.)"""
+    import re
+    if not re.fullmatch(r"(\d+[smhdw])+", text):
+        sys.exit("cannot read duration %r: use for example 90m, 12h, 7d, 2w or 1d12h" % text)
+    return sum(int(n) * _UNIT_MS[u] for n, u in re.findall(r"(\d+)([smhdw])", text))
+
+
 def report(result, started):
     if result is None:
         print("no answer within the timeout. Is the plugin running, on this Redis and prefix, with web-commands enabled?", file=sys.stderr)
@@ -391,6 +404,19 @@ def build_parser():
 
     listen = sub.add_parser("listen", help="print verified events")
     listen.add_argument("--raw", action="store_true", help="print full envelopes")
+
+    edit = sub.add_parser("edit", help="change the expiry, reason text or note of a punishment (UPDATE_PUNISHMENT)")
+    edit.add_argument("--punishment-id", type=int, required=True)
+    edit.add_argument("--actor-name", required=True)
+    edit.add_argument("--actor-ref")
+    expiry = edit.add_mutually_exclusive_group()
+    expiry.add_argument("--expires-at", type=int, help="new expiry as epoch milliseconds")
+    expiry.add_argument("--in", dest="expires_in", help="new expiry this long from now, e.g. 7d, 12h (a convenience of this client)")
+    expiry.add_argument("--permanent", action="store_true", help="make the punishment permanent (sends expiresAt: null)")
+    edit.add_argument("--reason-text", help="new reason shown to the player")
+    note = edit.add_mutually_exclusive_group()
+    note.add_argument("--note", help="new internal staff note")
+    note.add_argument("--clear-note", action="store_true", help="remove the staff note")
 
     for name in ("ban", "pardon"):
         cmd = sub.add_parser(name)
@@ -447,6 +473,24 @@ def main(argv=None):
             if args.server:
                 payload["scope"] = {"type": "SERVER", "target": args.server}
             return report(client.send_command("ISSUE_PUNISHMENT", payload, args.timeout), started)
+
+        if args.command == "edit":
+            payload = {"actor": actor_object(args), "punishmentId": args.punishment_id}
+            if args.permanent:
+                payload["expiresAt"] = None  # JSON null: the one place where null means something
+            elif args.expires_at is not None:
+                payload["expiresAt"] = args.expires_at
+            elif args.expires_in:
+                payload["expiresAt"] = int(time.time() * 1000) + parse_duration_ms(args.expires_in)
+            if args.reason_text:
+                payload["reasonText"] = args.reason_text
+            if args.clear_note:
+                payload["note"] = ""
+            elif args.note is not None:
+                payload["note"] = args.note
+            if len(payload) == 2:
+                sys.exit("nothing to change: give --expires-at/--in/--permanent, --reason-text or --note/--clear-note")
+            return report(client.send_command("UPDATE_PUNISHMENT", payload, args.timeout), started)
 
         if args.command == "pardon":
             payload = {"actor": actor_object(args)}

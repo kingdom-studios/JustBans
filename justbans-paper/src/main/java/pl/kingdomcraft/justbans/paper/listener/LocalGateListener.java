@@ -19,6 +19,7 @@ import pl.kingdomcraft.justbans.common.render.TemplateRenderer;
 import pl.kingdomcraft.justbans.common.service.BanMatcher;
 import pl.kingdomcraft.justbans.paper.Core;
 import pl.kingdomcraft.justbans.paper.JustBans;
+import pl.kingdomcraft.justbans.paper.diagnostics.Diagnostics;
 import pl.kingdomcraft.justbans.paper.settings.Settings;
 
 /**
@@ -44,6 +45,8 @@ public final class LocalGateListener implements Listener {
 		try {
 			final List<Punishment> bans = core.database().query(connection -> core.punishments().findActiveBans(connection, event.getUniqueId(), core.clock().instant()));
 			final Optional<Punishment> ban = BanMatcher.banFor(bans, core.serverName(), core.serverGroup(), core.clock().instant());
+
+			Diagnostics.debug(Diagnostics.ENFORCE, "local gate: " + event.getName() + (ban.isPresent() ? " denied by ban #" + ban.get().publicId() : " allowed") + " (" + bans.size() + " active ban(s))");
 
 			if (ban.isPresent())
 				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, banScreen(core, ban.get()));

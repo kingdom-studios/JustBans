@@ -32,6 +32,7 @@ import pl.kingdomcraft.justbans.common.repository.PunishmentRepository;
 import pl.kingdomcraft.justbans.common.repository.ServerRepository;
 import pl.kingdomcraft.justbans.common.service.ErrorCode;
 import pl.kingdomcraft.justbans.common.service.ExemptionChecker;
+import pl.kingdomcraft.justbans.common.service.ExpirySweeper;
 import pl.kingdomcraft.justbans.common.service.PunishmentService;
 import pl.kingdomcraft.justbans.common.service.Result;
 import pl.kingdomcraft.justbans.velocity.command.JbProxyCommand;
@@ -64,8 +65,12 @@ public final class VelocityRuntime implements AutoCloseable {
 	private final AtomicReference<ReasonsFile> reasons;
 	private final ReasonSync reasonSync;
 	private final Path reasonsFile;
+	private final PluginConfig config;
 
-	private VelocityRuntime(Logger logger, Database database, RedisBus bus, OutboxPublisher outbox, AtomicReference<ReasonsFile> reasons, ReasonSync reasonSync, Path reasonsFile) {
+	private volatile ExpirySweeper sweeper;
+
+	private VelocityRuntime(Logger logger, PluginConfig config, Database database, RedisBus bus, OutboxPublisher outbox, AtomicReference<ReasonsFile> reasons, ReasonSync reasonSync, Path reasonsFile) {
+		this.config = config;
 		this.logger = logger;
 		this.database = database;
 		this.bus = bus;
@@ -111,7 +116,7 @@ public final class VelocityRuntime implements AutoCloseable {
 			final int count = reasonSync.sync(initialReasons);
 			logger.info("Synced " + count + " reasons to the database");
 
-			final VelocityRuntime runtime = new VelocityRuntime(logger, database, bus, outbox, reasons, reasonSync, reasonsPath);
+			final VelocityRuntime runtime = new VelocityRuntime(logger, config, database, bus, outbox, reasons, reasonSync, reasonsPath);
 
 			final ScreenRenderer screens = new ScreenRenderer(reasons::get, config, clock);
 			final ServerDirectory servers = new ServerDirectory(proxy, config);
@@ -151,6 +156,11 @@ public final class VelocityRuntime implements AutoCloseable {
 
 			bus.start();
 			outbox.start();
+
+			if (config.expirySweeperEnabled()) {
+				runtime.sweeper = new ExpirySweeper(service, bus, config.nodeId(), config.expirySweepInterval(), logger);
+				runtime.sweeper.start();
+			}
 
 			// Players already online (e.g. the plugin was loaded late): publish them and clear stale entries from a previous run.
 			final Map<UUID, OnlineDirectory.Entry> online = new HashMap<>();
@@ -208,8 +218,23 @@ public final class VelocityRuntime implements AutoCloseable {
 		return "Reloaded " + this.reloadReasons() + " reasons and notified the other servers.";
 	}
 
+	/** The loaded configuration, for the metrics charts. */
+	public PluginConfig config() {
+		return this.config;
+	}
+
+	/** Number of reasons currently defined in reasons.yml. */
+	public int reasonCount() {
+		return this.reasons.get().reasons().size();
+	}
+
 	@Override
 	public void close() {
+		final ExpirySweeper running = this.sweeper;
+
+		if (running != null)
+			running.close();
+
 		try {
 			this.outbox.drainOnce(); // best effort: get queued events out before going down
 		} catch (final SQLException | RuntimeException ex) {

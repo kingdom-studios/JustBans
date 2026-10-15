@@ -425,6 +425,54 @@ class WebCommandHandlerIntegrationTest {
 	}
 
 	@Test
+	void updatesExpiryReasonAndNoteAndReportsErrors() throws Exception {
+		final UUID uuid = UUID.randomUUID();
+		final UUID banRequest = UUID.randomUUID();
+
+		send("ISSUE_PUNISHMENT", command(banRequest, "{\"actor\":{\"name\":\"PanelAdmin\"},\"target\":{\"uuid\":\"" + uuid + "\"},\"kind\":\"TEMPBAN\",\"reasonId\":\"cheats\",\"duration\":\"1d\"}"));
+		final long id = awaitResult(banRequest).get("punishmentId").getAsLong();
+
+		final long newExpiry = System.currentTimeMillis() + Duration.ofDays(9).toMillis();
+		final UUID edit = UUID.randomUUID();
+
+		send("UPDATE_PUNISHMENT", command(edit, "{\"actor\":{\"ref\":\"u1\",\"name\":\"PanelAdmin\"},\"punishmentId\":" + id + ",\"expiresAt\":" + newExpiry
+				+ ",\"reasonText\":\"Flying near spawn\",\"note\":\"ticket 1187\"}"));
+		final JsonObject edited = awaitResult(edit);
+
+		assertEquals("OK", edited.get("status").getAsString(), edited.toString());
+		assertEquals("UPDATE_PUNISHMENT", edited.get("action").getAsString());
+
+		final Punishment p = database.query(c -> punishments.findById(c, id)).orElseThrow();
+		assertEquals(newExpiry, p.expiresAt().toEpochMilli());
+		assertEquals("Flying near spawn", p.reasonText());
+		assertEquals("ticket 1187", p.note());
+
+		final UUID permanent = UUID.randomUUID();
+		send("UPDATE_PUNISHMENT", command(permanent, "{\"actor\":{\"name\":\"PanelAdmin\"},\"punishmentId\":" + id + ",\"expiresAt\":null,\"note\":null}"));
+		assertEquals("OK", awaitResult(permanent).get("status").getAsString());
+
+		final Punishment forever = database.query(c -> punishments.findById(c, id)).orElseThrow();
+		assertNull(forever.expiresAt());
+		assertNull(forever.note());
+
+		final UUID past = UUID.randomUUID();
+		send("UPDATE_PUNISHMENT", command(past, "{\"actor\":{\"name\":\"PanelAdmin\"},\"punishmentId\":" + id + ",\"expiresAt\":1000}"));
+		assertEquals(ErrorCode.INVALID_DURATION.name(), awaitResult(past).get("error").getAsString());
+
+		final UUID nothing = UUID.randomUUID();
+		send("UPDATE_PUNISHMENT", command(nothing, "{\"actor\":{\"name\":\"PanelAdmin\"},\"punishmentId\":" + id + "}"));
+		assertEquals(ErrorCode.INVALID_REQUEST.name(), awaitResult(nothing).get("error").getAsString());
+
+		final UUID missing = UUID.randomUUID();
+		send("UPDATE_PUNISHMENT", command(missing, "{\"actor\":{\"name\":\"PanelAdmin\"},\"punishmentId\":987654321,\"note\":\"x\"}"));
+		assertEquals(ErrorCode.UNKNOWN_PUNISHMENT.name(), awaitResult(missing).get("error").getAsString());
+
+		final UUID malformed = UUID.randomUUID();
+		send("UPDATE_PUNISHMENT", command(malformed, "{\"actor\":{\"name\":\"PanelAdmin\"},\"punishmentId\":\"seven\"}"));
+		assertEquals(ErrorCode.INVALID_REQUEST.name(), awaitResult(malformed).get("error").getAsString());
+	}
+
+	@Test
 	void pingReportsWhichNodeAnswered() throws Exception {
 		final UUID requestId = UUID.randomUUID();
 

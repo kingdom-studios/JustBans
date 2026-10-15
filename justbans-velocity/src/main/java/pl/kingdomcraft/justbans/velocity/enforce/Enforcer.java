@@ -59,7 +59,8 @@ public final class Enforcer {
 		try {
 			switch (event.type()) {
 				case "PUNISHMENT_CREATED" -> this.created(PunishmentJson.fromEventPayload(event.payload()));
-				case "PUNISHMENT_REVOKED" -> this.cache.invalidate(PunishmentJson.fromEventPayload(event.payload()).targetUuid());
+				// Revoked, edited and expired punishments change what the gates must decide, so drop the cached bans.
+				case "PUNISHMENT_REVOKED", "PUNISHMENT_UPDATED", "PUNISHMENT_EXPIRED" -> this.cache.invalidate(PunishmentJson.fromEventPayload(event.payload()).targetUuid());
 				default -> {
 					// REASONS_UPDATED, JOIN_DENIED, ... are not our concern
 				}

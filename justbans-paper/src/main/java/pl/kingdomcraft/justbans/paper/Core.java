@@ -3,9 +3,11 @@ package pl.kingdomcraft.justbans.paper;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +19,8 @@ import org.bukkit.plugin.Plugin;
 import pl.kingdomcraft.justbans.common.database.Database;
 import pl.kingdomcraft.justbans.common.database.DatabaseConfig;
 import pl.kingdomcraft.justbans.common.database.Migrator;
+import pl.kingdomcraft.justbans.common.json.PunishmentJson;
+import pl.kingdomcraft.justbans.common.messaging.Envelope;
 import pl.kingdomcraft.justbans.common.messaging.HmacSigner;
 import pl.kingdomcraft.justbans.common.messaging.OutboxPublisher;
 import pl.kingdomcraft.justbans.common.messaging.RedisBus;
@@ -25,12 +29,15 @@ import pl.kingdomcraft.justbans.common.messaging.WebCommandHandler;
 import pl.kingdomcraft.justbans.common.repository.PunishmentRepository;
 import pl.kingdomcraft.justbans.common.repository.ReasonRepository;
 import pl.kingdomcraft.justbans.common.repository.ServerRepository;
+import pl.kingdomcraft.justbans.common.service.ExpirySweeper;
 import pl.kingdomcraft.justbans.common.service.PunishmentService;
 import pl.kingdomcraft.justbans.paper.catalog.ReasonCatalog;
 import pl.kingdomcraft.justbans.paper.catalog.ServerCatalog;
+import pl.kingdomcraft.justbans.paper.diagnostics.Diagnostics;
 import pl.kingdomcraft.justbans.paper.service.OnlineNames;
 import pl.kingdomcraft.justbans.paper.service.PaperExemptions;
 import pl.kingdomcraft.justbans.paper.service.PlayerResolver;
+import pl.kingdomcraft.justbans.paper.service.PlayerSnapshots;
 import pl.kingdomcraft.justbans.paper.settings.Settings;
 
 /**
@@ -55,6 +62,7 @@ public final class Core implements AutoCloseable {
 	private final PunishmentService service;
 	private final PlayerResolver resolver;
 	private final OnlineNames onlineNames;
+	private final PlayerSnapshots snapshots;
 	private final ReasonCatalog reasons = new ReasonCatalog();
 	private final ServerCatalog servers = new ServerCatalog();
 	private final PunishmentRepository punishments = new PunishmentRepository();
@@ -64,6 +72,8 @@ public final class Core implements AutoCloseable {
 
 		return thread;
 	});
+
+	private volatile ExpirySweeper sweeper;
 
 	private Core(Logger logger, String serverName, String serverGroup, String nodeId, DateTimeFormatter dateFormat, Database database, RedisBus bus, OutboxPublisher outbox,
 			PunishmentService service) {
@@ -78,6 +88,7 @@ public final class Core implements AutoCloseable {
 		this.service = service;
 		this.resolver = new PlayerResolver(database);
 		this.onlineNames = new OnlineNames(bus);
+		this.snapshots = new PlayerSnapshots(this::loadSnapshot, database.executor(), this.clock, Duration.ofSeconds(Settings.Placeholders.REFRESH_SECONDS), logger);
 	}
 
 	/**
@@ -104,10 +115,12 @@ public final class Core implements AutoCloseable {
 		OutboxPublisher outbox = null;
 
 		try {
+			database.setObserver(Diagnostics.databaseObserver(logger));
 			new Migrator(database, logger).migrate();
 
 			bus = new RedisBus(new RedisConfig(Settings.Redis.HOST, Settings.Redis.PORT, emptyToNull(Settings.Redis.USER), emptyToNull(Settings.Redis.PASSWORD), Settings.Redis.SSL,
 					Settings.Redis.DATABASE, Settings.Redis.CONNECT_TIMEOUT_MILLIS, Settings.Redis.PREFIX), new HmacSigner(secret), nodeId, Clock.systemUTC(), logger);
+			bus.setTrace(() -> Diagnostics.isDebugged(Diagnostics.REDIS), line -> Diagnostics.debug(Diagnostics.REDIS, line));
 
 			outbox = new OutboxPublisher(database, bus, nodeId, Clock.systemUTC(), logger, Settings.Punishments.OUTBOX_INTERVAL_MILLIS);
 
@@ -122,10 +135,7 @@ public final class Core implements AutoCloseable {
 			if (!core.servers.hasServer(serverName))
 				logger.warning("Server.Name '" + serverName + "' is not registered by the proxy yet (jb_servers). Server bans are stored by that name, so make sure it matches the name in velocity.toml exactly.");
 
-			bus.onVerified(bus.channels().events(), event -> {
-				if (REASONS_UPDATED.equals(event.type()))
-					core.scheduler.execute(core::reloadReasonsQuietly);
-			});
+			bus.onVerified(bus.channels().events(), core::onEvent);
 
 			if (Settings.WebCommands.ENABLED) {
 				new WebCommandHandler(database, service, bus, nodeId, Clock.systemUTC(), logger, Duration.ofSeconds(Settings.WebCommands.MAX_SKEW_SECONDS)).start();
@@ -134,6 +144,12 @@ public final class Core implements AutoCloseable {
 
 			bus.start();
 			outbox.start();
+
+			if (Settings.ExpirySweeper.ENABLED) {
+				core.sweeper = new ExpirySweeper(service, bus, nodeId, Duration.ofSeconds(Settings.ExpirySweeper.INTERVAL_SECONDS), logger);
+				core.sweeper.setTrace(line -> Diagnostics.debug(Diagnostics.SWEEPER, line));
+				core.sweeper.start();
+			}
 
 			core.scheduler.scheduleWithFixedDelay(core.onlineNames::refresh, 1, 3, TimeUnit.SECONDS);
 			core.scheduler.scheduleWithFixedDelay(core::refreshServersQuietly, 30, 30, TimeUnit.SECONDS);
@@ -152,6 +168,36 @@ public final class Core implements AutoCloseable {
 
 			throw ex;
 		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Events and cached player data
+	// ------------------------------------------------------------------------------------------
+
+	/** Reacts to a verified message on the events channel. Runs on the Redis dispatcher thread. */
+	private void onEvent(Envelope event) {
+		switch (event.type()) {
+			case REASONS_UPDATED -> this.scheduler.execute(this::reloadReasonsQuietly);
+
+			// A player's punishments changed: refresh the placeholder data of those who are on this server.
+			case "PUNISHMENT_CREATED", "PUNISHMENT_REVOKED", "PUNISHMENT_UPDATED" -> {
+				try {
+					this.snapshots.refreshIfTracked(PunishmentJson.fromEventPayload(event.payload()).targetUuid());
+
+				} catch (final IllegalArgumentException ex) {
+					this.logger.fine("Ignoring unreadable " + event.type() + " event #" + event.seq() + ": " + ex.getMessage());
+				}
+			}
+
+			default -> {
+				// other events do not concern this server
+			}
+		}
+	}
+
+	private PlayerSnapshots.Snapshot loadSnapshot(UUID player, Instant now) throws SQLException {
+		return this.database.query(connection -> new PlayerSnapshots.Snapshot(this.punishments.findActiveBans(connection, player, now), this.punishments.findActiveWarns(connection, player, now),
+				this.punishments.history(connection, player, 0, 1).stream().findFirst().orElse(null), now));
 	}
 
 	// ------------------------------------------------------------------------------------------
@@ -220,6 +266,11 @@ public final class Core implements AutoCloseable {
 		return this.onlineNames;
 	}
 
+	/** Per-player punishment data for placeholders; reading it never blocks. */
+	public PlayerSnapshots snapshots() {
+		return this.snapshots;
+	}
+
 	public Clock clock() {
 		return this.clock;
 	}
@@ -250,6 +301,12 @@ public final class Core implements AutoCloseable {
 
 	@Override
 	public void close() {
+		final ExpirySweeper running = this.sweeper;
+
+		if (running != null)
+			running.close();
+
+		this.snapshots.clear();
 		this.scheduler.shutdownNow();
 
 		try {

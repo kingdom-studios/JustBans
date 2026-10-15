@@ -846,6 +846,19 @@ matching results and events. Replaying from a stored `seq` returns exactly the m
    `velocity.toml`, enable modern forwarding), config reference, permission list.
 8. Tag `v1.0.0` and attach the release jars from CI.
 
+**Status of Phase 6** (kept here so the plan stays honest):
+
+| # | Item | State |
+|---|---|---|
+| 1 | Duration tiers, LuckPerms weight rule, per-staff rate limits | Weights exist (`Use_Weights`); duration tiers and rate limits **not done** |
+| 2 | `UPDATE_PUNISHMENT` in game and over web | Done (`PunishmentService.updateBlocking`, `/justbans edit`, web command, `PUNISHMENT_UPDATED`) |
+| 3 | Expiry sweeper with Redis `SET NX` election | Done (`ExpirySweeper`, migration V2, `PUNISHMENT_EXPIRED`) |
+| 4 | PlaceholderAPI expansion | Done (`%justbans_warns%`, `_banned_servers%`, `_last_punishment%`, `_active_ban_expiry%`), cache-only |
+| 5 | Debug sections, `LagCatcher`, bStats | Done on Paper (`database`, `redis`, `enforce`, `sweeper`; main-thread DB call guard); bStats on both platforms, **inert until the bStats ids are filled in**. No `/justbans debug` dump yet. |
+| 6 | Load test | **Not done** |
+| 7 | Documentation | `INSTALL.md` and `docs/redis-protocol.md` done; a full config reference is not written |
+| 8 | Tag `v1.0.0`, CI release jars | **Not done** |
+
 ### Rough total: 4–5 weeks for one developer.
 
 ---

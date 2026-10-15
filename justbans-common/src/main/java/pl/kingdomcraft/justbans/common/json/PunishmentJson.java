@@ -1,9 +1,11 @@
 package pl.kingdomcraft.justbans.common.json;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -26,6 +28,25 @@ public final class PunishmentJson {
 	public static String eventPayload(Punishment punishment) {
 		final JsonObject root = new JsonObject();
 		root.add("punishment", toJson(punishment));
+
+		return GSON.toJson(root);
+	}
+
+	/**
+	 * Payload of {@code PUNISHMENT_UPDATED}: the snapshot after the edit plus who made it and which fields changed
+	 * ({@code expiresAt}, {@code reasonText}, {@code note}). The note's content itself is never published.
+	 */
+	public static String updatedPayload(Punishment punishment, Actor by, List<String> changed) {
+		final JsonObject root = new JsonObject();
+		root.add("punishment", toJson(punishment));
+
+		final JsonObject update = new JsonObject();
+		update.add("by", actor(by));
+
+		final JsonArray fields = new JsonArray();
+		changed.forEach(fields::add);
+		update.add("changed", fields);
+		root.add("update", update);
 
 		return GSON.toJson(root);
 	}

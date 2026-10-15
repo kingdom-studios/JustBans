@@ -15,6 +15,9 @@ import pl.kingdomcraft.justbans.common.messaging.RedisConfig;
  * @param serverGroups        server id to group name, for group bans; servers not listed have no group
  * @param fallbackServers     where players are sent when they are banned from their current or default server
  * @param banCacheSeconds     how long a player's bans stay cached without an event refreshing them
+ * @param expirySweeperEnabled whether this node takes part in announcing expired punishments (one node at a time does the work)
+ * @param expirySweepInterval  how often the sweeper elects a node and sweeps
+ * @param metricsEnabled      whether anonymous bStats statistics are sent (bStats' own global opt-out still applies)
  */
 public record PluginConfig(
 		String nodeId,
@@ -27,6 +30,9 @@ public record PluginConfig(
 		boolean joinDeniedEvents,
 		int banCacheSeconds,
 		long outboxIntervalMs,
+		boolean expirySweeperEnabled,
+		Duration expirySweepInterval,
+		boolean metricsEnabled,
 		Map<String, String> serverGroups,
 		List<String> fallbackServers,
 		DateTimeFormatter dateFormat,

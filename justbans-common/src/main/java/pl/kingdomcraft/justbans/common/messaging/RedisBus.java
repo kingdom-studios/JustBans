@@ -12,6 +12,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,6 +29,7 @@ import redis.clients.jedis.JedisClientConfig;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.params.SetParams;
 
 /**
  * Redis Pub/Sub transport. Redis is only a nudge: delivery is at-most-once, so nothing here is authoritative;
@@ -85,6 +89,10 @@ public final class RedisBus implements AutoCloseable {
 	private final ScheduledExecutorService pinger = Executors.newSingleThreadScheduledExecutor(daemon("JustBans-Redis-Ping"));
 	private final AtomicInteger subscribedChannels = new AtomicInteger();
 
+	private volatile BooleanSupplier traceEnabled = () -> false;
+	private volatile Consumer<String> traceSink = line -> {
+	};
+
 	private volatile boolean running;
 	private volatile boolean connected;
 	private volatile Subscription subscription;
@@ -130,6 +138,21 @@ public final class RedisBus implements AutoCloseable {
 
 	public Channels channels() {
 		return this.channels;
+	}
+
+	/**
+	 * Optional diagnostics: while {@code enabled} returns true every published and received message is described to
+	 * {@code sink} (type, node, seq, size, signature result; never the payload). Both are called from I/O threads, so they
+	 * must be fast and thread-safe.
+	 */
+	public void setTrace(BooleanSupplier enabled, Consumer<String> sink) {
+		this.traceEnabled = enabled;
+		this.traceSink = sink;
+	}
+
+	private void trace(Supplier<String> line) {
+		if (this.traceEnabled.getAsBoolean())
+			this.traceSink.accept(line.get());
 	}
 
 	public String nodeId() {
@@ -236,10 +259,40 @@ public final class RedisBus implements AutoCloseable {
 			throw new BusException("Message of type " + envelope.type() + " is " + json.length() + " characters, over the " + MAX_MESSAGE_LENGTH + " limit");
 
 		try (Jedis jedis = this.publishPool.getResource()) {
-			return jedis.publish(channel, json);
+			final long receivers = jedis.publish(channel, json);
+
+			this.trace(() -> "published " + envelope.type() + " seq=" + envelope.seq() + " (" + json.length() + " chars) on " + channel + " to " + receivers + " subscriber(s)");
+
+			return receivers;
 
 		} catch (final RuntimeException ex) {
+			this.trace(() -> "publish of " + envelope.type() + " on " + channel + " failed: " + ex.getMessage());
+
 			throw new BusException("Could not publish to " + channel + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Tries to take a short-lived lock with {@code SET key owner NX PX ttl}. Whoever gets {@code true} holds the lock until
+	 * the TTL passes; there is deliberately no release, so the lock also rate-limits the work it guards across nodes. The
+	 * lock only reduces duplicate work, correctness must never depend on it.
+	 *
+	 * @return true if this call took the lock, false if another holder has it
+	 * @throws BusException if Redis is unreachable
+	 */
+	public boolean tryLock(String key, String owner, long ttlMillis) {
+		if (ttlMillis <= 0)
+			throw new IllegalArgumentException("ttlMillis must be positive");
+
+		try (Jedis jedis = this.publishPool.getResource()) {
+			final boolean acquired = "OK".equals(jedis.set(key, owner, SetParams.setParams().nx().px(ttlMillis)));
+
+			this.trace(() -> "lock " + key + (acquired ? " acquired" : " held by another node") + " (ttl " + ttlMillis + " ms)");
+
+			return acquired;
+
+		} catch (final RuntimeException ex) {
+			throw new BusException("Could not take lock " + key + ": " + ex.getMessage(), ex);
 		}
 	}
 
@@ -420,6 +473,8 @@ public final class RedisBus implements AutoCloseable {
 		}
 
 		final boolean valid = this.signer.verify(envelope);
+
+		this.trace(() -> "received " + envelope.type() + " seq=" + envelope.seq() + " from " + envelope.node() + " on " + channel + " (" + message.length() + " chars, signature " + (valid ? "ok" : "INVALID") + ")");
 
 		if (!valid)
 			this.logger.warning("Redis message " + envelope.id() + " (" + envelope.type() + ") from '" + envelope.node() + "' on " + channel

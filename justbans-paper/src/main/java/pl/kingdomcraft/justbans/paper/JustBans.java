@@ -1,7 +1,10 @@
 package pl.kingdomcraft.justbans.paper;
 
+import org.bstats.bukkit.Metrics;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.plugin.SimplePlugin;
+
+import pl.kingdomcraft.justbans.paper.diagnostics.PluginMetrics;
 
 /**
  * Paper side of JustBans: staff commands, tab completion and a fallback login gate, built on Foundation. Settings,
@@ -18,8 +21,11 @@ public final class JustBans extends SimplePlugin {
 
 	private static volatile Core core;
 
+	private Metrics metrics;
+
 	@Override
 	protected void onPluginStart() {
+		this.metrics = PluginMetrics.register(this);
 		this.startCoreAsync();
 	}
 
@@ -37,6 +43,9 @@ public final class JustBans extends SimplePlugin {
 	@Override
 	protected void onPluginStop() {
 		stopCore();
+
+		if (this.metrics != null)
+			this.metrics.shutdown();
 	}
 
 	/**

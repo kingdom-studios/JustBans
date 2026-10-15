@@ -5,7 +5,10 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -315,5 +318,196 @@ public final class PunishmentService {
 		this.events.append(connection, EventType.PUNISHMENT_REVOKED, revoked.id(), PunishmentJson.eventPayload(revoked), this.nodeId, now);
 
 		return revoked;
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Expiry
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Emits one {@code PUNISHMENT_EXPIRED} event for each ban or warn whose expiry has passed and that has not been announced
+	 * yet. Expiry itself needs no database change (a punishment is active while its end lies ahead), this only tells the
+	 * rest of the network.
+	 *
+	 * <p>Safe to call from several nodes at once: each announcement is claimed with a conditional update inside the
+	 * transaction that appends the event, so every expiry produces exactly one event no matter how many sweepers race.
+	 *
+	 * @param limit maximum number announced by this call
+	 * @return the number of events appended
+	 */
+	public int sweepExpiredBlocking(int limit) throws SQLException {
+		final Instant now = this.clock.instant();
+
+		final int announced = this.database.transaction(connection -> {
+			int count = 0;
+
+			for (final Punishment due : this.punishments.findUnannouncedExpired(connection, now, limit))
+				if (this.punishments.markExpiryAnnounced(connection, due.id(), now)) {
+					this.events.append(connection, EventType.PUNISHMENT_EXPIRED, due.id(), PunishmentJson.eventPayload(due), this.nodeId, now);
+					count++;
+				}
+
+			return count;
+		});
+
+		if (announced > 0)
+			this.notifyEventsAppended();
+
+		return announced;
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Lookup and editing
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Finds a punishment by what people type: the short public code ({@code K7Q2M9XA}, with or without a leading {@code #}) or
+	 * the numeric database id. Blocking; call from a database or other non-main thread.
+	 */
+	public Optional<Punishment> findBlocking(String reference) throws SQLException {
+		if (reference == null)
+			return Optional.empty();
+
+		String text = reference.strip();
+		final boolean hash = text.startsWith("#");
+
+		if (hash)
+			text = text.substring(1);
+
+		if (text.isEmpty())
+			return Optional.empty();
+
+		final String code = text.toUpperCase(Locale.ROOT);
+		final String lookup = text;
+
+		return this.database.query(connection -> {
+			if (hash || PublicIdGenerator.looksLikePublicId(code)) {
+				final Optional<Punishment> byCode = this.punishments.findByPublicId(connection, code);
+
+				if (byCode.isPresent() || hash)
+					return byCode;
+			}
+
+			if (lookup.chars().allMatch(Character::isDigit) && lookup.length() <= 18)
+				return this.punishments.findById(connection, Long.parseLong(lookup));
+
+			return Optional.empty();
+		});
+	}
+
+	public CompletableFuture<Optional<Punishment>> find(String reference) {
+		return this.database.supplyAsync(() -> this.findBlocking(reference));
+	}
+
+	public CompletableFuture<Result<Punishment>> update(UpdateRequest request) {
+		return this.database.supplyAsync(() -> this.updateBlocking(request));
+	}
+
+	/**
+	 * Edits the expiry, reason text or staff note of a punishment and appends a {@code PUNISHMENT_UPDATED} event listing what
+	 * changed. Asking for values the punishment already has succeeds without an event.
+	 *
+	 * <p>Reason and note can be corrected on any punishment, ended or not. The expiry can only be changed while the
+	 * punishment is active, must lie in the future (use a pardon to end it now), and kicks have none.
+	 *
+	 * Blocking form; only call from a database or other non-main thread.
+	 */
+	public Result<Punishment> updateBlocking(UpdateRequest request) throws SQLException {
+		final Result<Punishment> result = this.updateTransaction(request);
+
+		if (result.isOk())
+			this.notifyEventsAppended();
+
+		return result;
+	}
+
+	private Result<Punishment> updateTransaction(UpdateRequest request) throws SQLException {
+		if (!request.hasChanges())
+			return Result.error(ErrorCode.INVALID_REQUEST, "Nothing to change: give a new expiry, reason or note");
+
+		String reasonText = null;
+
+		if (request.reasonText() != null) {
+			reasonText = request.reasonText().strip();
+
+			if (reasonText.isEmpty())
+				return Result.error(ErrorCode.INVALID_REQUEST, "The reason cannot be empty");
+
+			if (reasonText.length() > MAX_REASON_LENGTH)
+				return Result.error(ErrorCode.INVALID_REQUEST, "The reason is longer than " + MAX_REASON_LENGTH + " characters");
+		}
+
+		String note = null;
+
+		if (request.note() != null) {
+			note = request.note().strip();
+
+			if (note.length() > MAX_REASON_LENGTH)
+				return Result.error(ErrorCode.INVALID_REQUEST, "The note is longer than " + MAX_REASON_LENGTH + " characters");
+
+			if (note.isEmpty())
+				note = null;
+		}
+
+		final String newReason = reasonText;
+		final String newNote = note;
+		final Instant now = this.clock.instant();
+
+		if (request.changeExpiry() && request.expiresAt() != null) {
+			if (!request.expiresAt().isAfter(now))
+				return Result.error(ErrorCode.INVALID_DURATION, "The new expiry must be in the future; pardon the punishment to end it now");
+
+			if (request.expiresAt().isAfter(now.plus(DurationParser.MAX)))
+				return Result.error(ErrorCode.INVALID_DURATION, "The new expiry is more than 10 years away");
+		}
+
+		return this.database.transaction(connection -> {
+			final Optional<Punishment> found = this.punishments.findById(connection, request.punishmentId());
+
+			if (found.isEmpty())
+				return Result.error(ErrorCode.UNKNOWN_PUNISHMENT, "No punishment with id " + request.punishmentId());
+
+			this.players.lock(connection, found.get().targetUuid());
+
+			// Re-read under the lock so we never act on a stale view.
+			final Punishment current = this.punishments.findById(connection, request.punishmentId()).orElse(found.get());
+
+			if (request.changeExpiry()) {
+				if (current.type() == PunishmentType.KICK)
+					return Result.error(ErrorCode.INVALID_REQUEST, "Kicks have no expiry");
+
+				if (!current.isActive(now))
+					return Result.error(ErrorCode.NOT_ACTIVE, "Punishment #" + current.publicId() + " is not active, its expiry cannot be changed");
+			}
+
+			final List<String> changed = new ArrayList<>();
+
+			final boolean expiryChanged = request.changeExpiry() && !Objects.equals(current.expiresAt(), request.expiresAt());
+			final boolean reasonChanged = newReason != null && !newReason.equals(current.reasonText());
+			final boolean noteChanged = request.note() != null && !Objects.equals(current.note(), newNote);
+
+			if (expiryChanged)
+				changed.add("expiresAt");
+
+			if (reasonChanged)
+				changed.add("reasonText");
+
+			if (noteChanged)
+				changed.add("note");
+
+			if (changed.isEmpty())
+				return Result.ok(current);
+
+			final PunishmentRepository.Edit edit = new PunishmentRepository.Edit(expiryChanged, request.expiresAt(), reasonChanged ? newReason : null, noteChanged, newNote);
+
+			if (!this.punishments.applyEdit(connection, current.id(), edit, now))
+				return Result.error(ErrorCode.NOT_ACTIVE, "Punishment #" + current.publicId() + " ended while it was being edited");
+
+			final Punishment updated = this.punishments.findById(connection, current.id()).orElseThrow();
+
+			this.events.append(connection, EventType.PUNISHMENT_UPDATED, updated.id(), PunishmentJson.updatedPayload(updated, request.actor(), changed), this.nodeId, now);
+
+			return Result.ok(updated);
+		});
 	}
 }

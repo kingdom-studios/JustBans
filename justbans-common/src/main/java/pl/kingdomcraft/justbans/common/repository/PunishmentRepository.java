@@ -157,6 +157,87 @@ public final class PunishmentRepository {
 		}
 	}
 
+	/**
+	 * Bans and warns whose expiry has passed and that no {@code PUNISHMENT_EXPIRED} event has been emitted for yet,
+	 * earliest expiry first.
+	 */
+	public List<Punishment> findUnannouncedExpired(Connection connection, Instant now, int limit) throws SQLException {
+		return findMany(connection, "revoked_at IS NULL AND expiry_event_at IS NULL AND expires_at IS NOT NULL AND expires_at <= ? ORDER BY expires_at, id LIMIT ?",
+				statement -> {
+					Sql.setInstant(statement, 1, now);
+					statement.setInt(2, limit);
+				});
+	}
+
+	/**
+	 * Records that the expiry event for this punishment is being emitted.
+	 *
+	 * @return false if another node got there first, or the punishment was revoked or extended in the meantime
+	 */
+	public boolean markExpiryAnnounced(Connection connection, long id, Instant now) throws SQLException {
+		try (PreparedStatement statement = connection.prepareStatement(
+				"UPDATE jb_punishments SET expiry_event_at = ? WHERE id = ? AND expiry_event_at IS NULL AND revoked_at IS NULL "
+						+ "AND expires_at IS NOT NULL AND expires_at <= ?")) {
+			Sql.setInstant(statement, 1, now);
+			statement.setLong(2, id);
+			Sql.setInstant(statement, 3, now);
+
+			return statement.executeUpdate() == 1;
+		}
+	}
+
+	/**
+	 * The editable parts of a punishment. {@code reasonText == null} leaves the text alone, {@code note} is only written when
+	 * {@code noteChanged} is set (a null note then clears it), {@code expiresAt} only when {@code expiryChanged} is set (null
+	 * then means permanent).
+	 */
+	public record Edit(boolean expiryChanged, Instant expiresAt, String reasonText, boolean noteChanged, String note) {
+	}
+
+	/**
+	 * Applies an edit. A changed expiry is only written while the punishment is still active, so an edit can never race with
+	 * the expiry sweeper or a pardon into resurrecting an ended punishment.
+	 *
+	 * @return false if nothing was written (unknown id, or the expiry edit lost against expiry or revocation)
+	 */
+	public boolean applyEdit(Connection connection, long id, Edit edit, Instant now) throws SQLException {
+		final List<String> assignments = new ArrayList<>();
+
+		if (edit.expiryChanged())
+			assignments.add("expires_at = ?");
+
+		if (edit.reasonText() != null)
+			assignments.add("reason_text = ?");
+
+		if (edit.noteChanged())
+			assignments.add("note = ?");
+
+		if (assignments.isEmpty())
+			return false;
+
+		final String sql = "UPDATE jb_punishments SET " + String.join(", ", assignments) + " WHERE id = ?" + (edit.expiryChanged() ? " AND " + ACTIVE : "");
+
+		try (PreparedStatement statement = connection.prepareStatement(sql)) {
+			int index = 1;
+
+			if (edit.expiryChanged())
+				Sql.setInstant(statement, index++, edit.expiresAt());
+
+			if (edit.reasonText() != null)
+				statement.setString(index++, edit.reasonText());
+
+			if (edit.noteChanged())
+				Sql.setString(statement, index++, edit.note());
+
+			statement.setLong(index++, id);
+
+			if (edit.expiryChanged())
+				Sql.setInstant(statement, index, now);
+
+			return statement.executeUpdate() == 1;
+		}
+	}
+
 	// ------------------------------------------------------------------------------------------
 
 	@FunctionalInterface

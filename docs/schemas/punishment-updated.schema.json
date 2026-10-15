@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/punishment-updated.schema.json",
+  "title": "PUNISHMENT_UPDATED event",
+  "description": "Published after an edit (UPDATE_PUNISHMENT or /justbans edit) changed something. `punishment` is the snapshot after the edit; `update` says who edited and which fields changed. The note's content is never published, only the fact that it changed.",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "required": ["seq", "payload"],
+  "properties": {
+    "type": { "const": "PUNISHMENT_UPDATED" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["punishment", "update"],
+      "properties": {
+        "punishment": { "$ref": "punishment.schema.json" },
+        "update": {
+          "type": "object",
+          "required": ["by", "changed"],
+          "properties": {
+            "by": { "$ref": "punishment.schema.json#/$defs/actor" },
+            "changed": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "enum": ["expiresAt", "reasonText", "note"] }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

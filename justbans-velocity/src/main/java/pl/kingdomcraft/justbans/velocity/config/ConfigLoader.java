@@ -110,10 +110,14 @@ public final class ConfigLoader {
 		final int cacheSeconds = problems.integer(root.node("ban-cache-seconds"), 60, 1, 86_400);
 		final int outboxInterval = problems.integer(root.node("outbox-interval-ms"), 2000, 100, 600_000);
 
+		final boolean sweeperEnabled = problems.bool(root.node("expiry-sweeper", "enabled"), true);
+		final int sweepSeconds = problems.integer(root.node("expiry-sweeper", "interval-seconds"), 60, 5, 86_400);
+		final boolean metrics = problems.bool(root.node("metrics"), true);
+
 		problems.throwIfAny(FILE);
 
 		return new PluginConfig(nodeId, secret, database, redisConfig, webEnabled, Duration.ofSeconds(skew), policy, joinDenied, cacheSeconds, outboxInterval,
-				Map.copyOf(groups), List.copyOf(fallback), dateFormat, messages);
+				sweeperEnabled, Duration.ofSeconds(sweepSeconds), metrics, Map.copyOf(groups), List.copyOf(fallback), dateFormat, messages);
 	}
 
 	private static DatabaseConfig safeDatabase(Problems problems, ConfigurationNode db, Map<String, String> properties) {

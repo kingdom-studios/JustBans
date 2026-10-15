@@ -50,6 +50,15 @@ ban-cache-seconds: 60
 # How often to retry publishing queued events when Redis was unreachable.
 outbox-interval-ms: 2000
 
+# Announces expired bans and warns (PUNISHMENT_EXPIRED events, which refresh caches and the web panel). Every node with
+# this enabled takes part, but a Redis lock lets only ONE of them sweep per interval, so it is safe to enable everywhere.
+expiry-sweeper:
+  enabled: true
+  interval-seconds: 60
+
+# Anonymous usage statistics through bStats (https://bstats.org). bStats' own global setting (its config file in the plugins folder) also applies.
+metrics: true
+
 # Server groups for group bans: velocity.toml server name -> group. Servers not listed have no group.
 server-groups: {}
 #  skyblock-1: skyblock

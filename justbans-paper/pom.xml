@@ -86,6 +86,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Anonymous usage statistics (https://bstats.org). Shaded and relocated, as bStats requires. -->
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>${bstats.version}</version>
+        </dependency>
+
         <!-- Offline exemption checks. Provided by the LuckPerms plugin at runtime (soft dependency). -->
         <dependency>
             <groupId>net.luckperms</groupId>
@@ -161,6 +168,7 @@
                             <include>org.json:json</include>
                             <include>com.github.ben-manes.caffeine:caffeine</include>
                             <include>com.google.code.gson:gson</include>
+                            <include>org.bstats:*</include>
                         </includes>
                     </artifactSet>
                     <filters>
@@ -183,6 +191,10 @@
                         <relocation>
                             <pattern>org.mineacademy.fo</pattern>
                             <shadedPattern>${foundation.relocation}</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.bstats</pattern>
+                            <shadedPattern>${shade.prefix}.bstats</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>com.zaxxer.hikari</pattern>

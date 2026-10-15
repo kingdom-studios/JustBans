@@ -71,6 +71,13 @@ Log_Lag_Over_Milis: 100
 # -------------------------------------------------------------------------------------------------
 # List of section names that will print informative messages about this plugin's features.
 # The Debugger class utilizes this key and will only print messages for sections enabled below.
+#
+# JustBans sections:
+#   database  - every database call: kind, duration, thread
+#   redis     - every Redis message sent or received (type, node, seq, size, signature result), and locks
+#   enforce   - login-gate decisions of this server
+#   sweeper   - expiry sweeper rounds
+# Use ["*"] for everything. Example:  Debug: [database, redis]
 # -------------------------------------------------------------------------------------------------
 Debug: []
 
@@ -122,6 +129,48 @@ Redis:
 Web_Commands:
   Enabled: false
   Max_Skew_Seconds: 30
+
+# -------------------------------------------------------------------------------------------------
+# Announces expired bans and warns to the whole network (PUNISHMENT_EXPIRED events: caches refresh,
+# the web panel updates). Every node with this on takes part, but a Redis lock lets only ONE of them
+# sweep per interval, so it is safe to leave on everywhere.
+# -------------------------------------------------------------------------------------------------
+Expiry_Sweeper:
+  Enabled: true
+  Interval_Seconds: 60
+
+# -------------------------------------------------------------------------------------------------
+# PlaceholderAPI (needs the PlaceholderAPI plugin):
+#   %justbans_warns%             number of the player's active warns
+#   %justbans_banned_servers%    servers/groups the player is banned from (comma separated)
+#   %justbans_last_punishment%   the player's most recent punishment, formatted below
+#   %justbans_active_ban_expiry% time left on the player's soonest-ending active ban
+# Values come from a per-player cache that is loaded when the player joins and refreshed by events,
+# so placeholders never wait for the database. Until the first load finishes they show Loading_Text.
+# -------------------------------------------------------------------------------------------------
+Placeholders:
+
+  # Safety-net refresh of a player's cached data, in case an event was missed.
+  Refresh_Seconds: 60
+
+  # Shown by the text placeholders when there is nothing to show (%justbans_warns% simply shows 0).
+  None_Text: "none"
+
+  # Shown while a player's data is still loading right after joining.
+  Loading_Text: ""
+
+  # Shown by %justbans_active_ban_expiry% for a ban that never ends.
+  Permanent_Text: "permanent"
+
+  # {type} {reason} {id} {actor} {ago}
+  Last_Punishment_Format: "{type}: {reason} ({ago} ago)"
+
+# -------------------------------------------------------------------------------------------------
+# Anonymous usage statistics through bStats (https://bstats.org). bStats' own global switch
+# (its config file in the plugins folder) also applies.
+# -------------------------------------------------------------------------------------------------
+Statistics:
+  Enabled: true
 
 # -------------------------------------------------------------------------------------------------
 # Punishment behaviour

@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -26,7 +27,8 @@ public record Envelope(int v, String id, String type, long ts, String node, Long
 
 	public static final int VERSION = 1;
 
-	private static final Gson GSON = new Gson();
+	/** Nulls are written out, so what goes on the wire is exactly what {@link #signingString()} signed. */
+	private static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
 	public Envelope {
 		Objects.requireNonNull(id, "id");

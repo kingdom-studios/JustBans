@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/update-punishment.schema.json",
+  "title": "UPDATE_PUNISHMENT command",
+  "description": "Edits the expiry, the reason text or the internal note of an existing punishment. Fields that are absent are left alone. The reason and note can be corrected on any punishment; the expiry only while the punishment is active (and kicks have none). Asking for the values it already has succeeds without emitting an event.",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "properties": {
+    "type": { "const": "UPDATE_PUNISHMENT" },
+    "seq": false,
+    "payload": {
+      "type": "object",
+      "required": ["requestId", "actor", "punishmentId"],
+      "properties": {
+        "requestId": { "type": "string", "format": "uuid" },
+        "actor": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+            "ref": { "type": "string", "maxLength": 64 }
+          },
+          "additionalProperties": false
+        },
+        "punishmentId": { "type": "integer", "minimum": 1, "description": "jb_punishments.id from an event or a COMMAND_RESULT." },
+        "expiresAt": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "New absolute expiry in epoch milliseconds, or JSON null to make it permanent. Must be in the future (pardon to end it now) and at most 10 years away. This is the one field where null is meaningful: absent means unchanged."
+        },
+        "reasonText": { "type": "string", "minLength": 1, "maxLength": 512, "description": "New reason shown to the player. The configured reason id of the punishment is kept." },
+        "note": { "type": ["string", "null"], "maxLength": 512, "description": "New internal staff note. An empty string or null removes the note." }
+      },
+      "anyOf": [{ "required": ["expiresAt"] }, { "required": ["reasonText"] }, { "required": ["note"] }],
+      "additionalProperties": false
+    }
+  }
+}

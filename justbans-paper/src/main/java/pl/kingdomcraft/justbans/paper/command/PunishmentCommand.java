@@ -215,7 +215,7 @@ public abstract class PunishmentCommand extends SimpleCommand {
 	}
 
 	/** The staff member as an actor: a player, or the console for anything else (including command blocks). */
-	private static Actor actorOf(CommandSender sender) {
+	static Actor actorOf(CommandSender sender) {
 		return sender instanceof Player player ? Actor.player(player.getUniqueId(), player.getName()) : Actor.console();
 	}
 

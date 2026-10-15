@@ -11,6 +11,18 @@ final class PublicIdGenerator {
 	private PublicIdGenerator() {
 	}
 
+	/** Whether the text has the shape of a public id (8 characters of the id alphabet), in upper case. */
+	static boolean looksLikePublicId(String text) {
+		if (text.length() != 8)
+			return false;
+
+		for (int i = 0; i < text.length(); i++)
+			if (ALPHABET.indexOf(text.charAt(i)) < 0)
+				return false;
+
+		return true;
+	}
+
 	static String next() {
 		final char[] id = new char[8];
 

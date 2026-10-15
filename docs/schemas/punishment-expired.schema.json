@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/punishment-expired.schema.json",
+  "title": "PUNISHMENT_EXPIRED event",
+  "description": "Published once for each ban or warn whose expiry has passed, by whichever node the expiry sweeper elected. Expiry itself needs no action (a punishment is active while its end lies ahead); this event tells caches and the web panel. Never emitted for pardoned punishments, permanent ones or kicks.",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "required": ["seq", "payload"],
+  "properties": {
+    "type": { "const": "PUNISHMENT_EXPIRED" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["punishment"],
+      "properties": {
+        "punishment": { "$ref": "punishment.schema.json" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

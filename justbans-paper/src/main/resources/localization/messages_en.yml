@@ -228,6 +228,17 @@ Errors:
   Unknown_Server: "&c{message}"
   Internal: "&cSomething went wrong, see the console."
 
+# /justbans edit <id> <duration|reason|note> <value>
+Edit:
+  Updated_Expiry: "&aPunishment &e#{id} &7of &f{target} &aupdated: expires {expires}"
+  Updated_Reason: "&aPunishment &e#{id} &7of &f{target} &aupdated: reason is now &f{reason}"
+  Updated_Note: "&aPunishment &e#{id} &7of &f{target} &aupdated: staff note saved."
+  Note_Removed: "&aPunishment &e#{id} &7of &f{target} &aupdated: staff note removed."
+  Not_Found: "&cNo punishment with id '{input}'. Use the id shown in /check or /history, for example K7Q2M9XA."
+  Unknown_Field: "&cUnknown field '{input}'. Use duration, reason or note."
+  Invalid_Duration: "&c{message} &7Use for example 7d, 12h, 1d12h or perm."
+  Value_Required: "&cGive a new value."
+
 Check:
   Header: "&8&m   &r &6Punishments of &f{target} &8&m   "
   None: "&aNo active punishments."

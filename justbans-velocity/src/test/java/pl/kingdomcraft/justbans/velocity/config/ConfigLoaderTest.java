@@ -35,6 +35,9 @@ class ConfigLoaderTest {
 		assertNull(config.redis().password());
 		assertEquals("justbans:", config.redis().prefix());
 		assertTrue(config.webCommandsEnabled());
+		assertTrue(config.expirySweeperEnabled());
+		assertEquals(Duration.ofSeconds(60), config.expirySweepInterval());
+		assertTrue(config.metricsEnabled());
 		assertEquals(Duration.ofSeconds(30), config.webMaxSkew());
 		assertEquals(PluginConfig.FailurePolicy.ALLOW, config.onDatabaseError());
 		assertTrue(config.joinDeniedEvents());
@@ -56,6 +59,8 @@ class ConfigLoaderTest {
 				join-denied-events: false
 				ban-cache-seconds: 5
 				outbox-interval-ms: 500
+				expiry-sweeper: { enabled: false, interval-seconds: 15 }
+				metrics: false
 				server-groups: { skyblock-1: skyblock, skyblock-2: skyblock }
 				fallback-servers: [lobby, hub]
 				date-format: "yyyy-MM-dd HH:mm"
@@ -78,6 +83,9 @@ class ConfigLoaderTest {
 		assertEquals(PluginConfig.FailurePolicy.DENY, config.onDatabaseError());
 		assertFalse(config.joinDeniedEvents());
 		assertEquals(500, config.outboxIntervalMs());
+		assertFalse(config.expirySweeperEnabled());
+		assertEquals(Duration.ofSeconds(15), config.expirySweepInterval());
+		assertFalse(config.metricsEnabled());
 		assertEquals("skyblock", config.groupOf("skyblock-2"));
 		assertNull(config.groupOf("lobby"));
 		assertEquals(java.util.List.of("lobby", "hub"), config.fallbackServers());

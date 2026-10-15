@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -155,9 +157,24 @@ class WebClientInteropTest {
 			run = python("ban", "--player", name, "--kind", "TEMPBAN", "--duration", "7d", "--custom-reason", "Griefing 😀", "--actor-name", "Web: alice", "--server", "survival");
 			assertEquals(0, run.exit(), run.out() + run.err());
 
+			final Matcher id = Pattern.compile("\"punishmentId\": (\\d+)").matcher(run.out());
+			assertTrue(id.find(), run.out());
+
+			run = python("edit", "--punishment-id", id.group(1), "--actor-name", "Web: alice", "--actor-ref", "42", "--in", "14d", "--reason-text", "Flying \u00e9 near spawn", "--note", "ticket \"1187\"");
+			assertEquals(0, run.exit(), run.out() + run.err());
+
+			run = python("edit", "--punishment-id", id.group(1), "--actor-name", "Web: alice", "--permanent", "--clear-note");
+			assertEquals(0, run.exit(), run.out() + run.err());
+
+			run = python("edit", "--punishment-id", id.group(1), "--actor-name", "Web: alice", "--expires-at", "1000");
+			assertEquals(1, run.exit(), run.out() + run.err());
+			assertTrue(run.out().contains("INVALID_DURATION"), run.out());
+
 			run = python("ban", "--player", "n" + name.substring(1), "--reason", "cheats", "--actor-name", "Web: alice");
 			assertEquals(1, run.exit(), run.out() + run.err());
 			assertTrue(run.out().contains("UNKNOWN_PLAYER"), run.out());
+
+			assertTrue(TestRedis.await(() -> seen.stream().filter(e -> e.type().equals("PUNISHMENT_UPDATED")).count() >= 2, 6_000), "update events were not published: " + seen.stream().map(Envelope::type).toList());
 
 			assertTrue(TestRedis.await(() -> seen.stream().filter(e -> e.type().equals("PUNISHMENT_REVOKED")).count() >= 1 && seen.stream().filter(e -> e.type().equals("PUNISHMENT_CREATED")).count() >= 2, 6_000),
 					"events were not published: " + seen.stream().map(Envelope::type).toList());

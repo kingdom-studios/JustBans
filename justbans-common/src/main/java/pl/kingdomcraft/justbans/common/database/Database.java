@@ -24,8 +24,22 @@ public final class Database implements AutoCloseable {
 		T apply(Connection connection) throws SQLException;
 	}
 
+	/**
+	 * Watches synchronous JDBC calls for diagnostics, for example to flag a call made on a thread that must never block.
+	 * Implementations run on whatever thread makes the call and must be cheap and thread-safe.
+	 */
+	@FunctionalInterface
+	public interface CallObserver {
+		/** Called just before {@link #query}/{@link #transaction} does any work; the returned task runs when it is over, success or not. */
+		Runnable begin(String kind);
+	}
+
+	private static final Runnable NOTHING = () -> {
+	};
+
 	private final HikariDataSource dataSource;
 	private final ExecutorService executor;
+	private volatile CallObserver observer = kind -> NOTHING;
 
 	public Database(DatabaseConfig config) {
 		final HikariConfig hikari = new HikariConfig();
@@ -47,10 +61,19 @@ public final class Database implements AutoCloseable {
 		return this.dataSource.getConnection();
 	}
 
+	public void setObserver(CallObserver observer) {
+		this.observer = observer == null ? kind -> NOTHING : observer;
+	}
+
 	/** Runs the function on the calling thread with a pooled connection (auto-commit on). */
 	public <T> T query(SqlFunction<T> function) throws SQLException {
+		final Runnable end = this.observer.begin("query");
+
 		try (Connection connection = this.getConnection()) {
 			return function.apply(connection);
+
+		} finally {
+			end.run();
 		}
 	}
 
@@ -58,6 +81,8 @@ public final class Database implements AutoCloseable {
 	 * Runs the function in a transaction on the calling thread. Commits on success, rolls back on any failure.
 	 */
 	public <T> T transaction(SqlFunction<T> function) throws SQLException {
+		final Runnable end = this.observer.begin("transaction");
+
 		try (Connection connection = this.getConnection()) {
 			connection.setAutoCommit(false);
 			connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
@@ -73,6 +98,9 @@ public final class Database implements AutoCloseable {
 
 				throw ex;
 			}
+
+		} finally {
+			end.run();
 		}
 	}
 

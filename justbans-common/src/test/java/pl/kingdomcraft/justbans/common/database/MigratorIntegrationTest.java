@@ -50,9 +50,9 @@ class MigratorIntegrationTest {
 	void migrationIsIdempotent() throws Exception {
 		final Migrator migrator = new Migrator(db.database(), Logger.getLogger("test"));
 
-		assertEquals(1, migrator.migrate());
-		assertEquals(1, migrator.migrate());
-		assertEquals(1L, count("SELECT COUNT(*) FROM jb_schema_version"));
+		assertEquals(2, migrator.migrate());
+		assertEquals(2, migrator.migrate());
+		assertEquals(2L, count("SELECT COUNT(*) FROM jb_schema_version"));
 	}
 
 	@Test
@@ -61,9 +61,9 @@ class MigratorIntegrationTest {
 		final CompletableFuture<Integer> a = db.database().supplyAsync(migrator::migrate);
 		final CompletableFuture<Integer> b = db.database().supplyAsync(migrator::migrate);
 
-		assertEquals(1, a.get());
-		assertEquals(1, b.get());
-		assertEquals(1L, count("SELECT COUNT(*) FROM jb_schema_version"));
+		assertEquals(2, a.get());
+		assertEquals(2, b.get());
+		assertEquals(2L, count("SELECT COUNT(*) FROM jb_schema_version"));
 	}
 
 	@Test

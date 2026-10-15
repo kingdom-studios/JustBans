@@ -14,6 +14,7 @@ public final class JustBansCommand extends SimpleCommandGroup {
 	@Override
 	protected void registerSubcommands() {
 		this.registerSubcommand(new ReloadCommand("justbans.admin"));
+		this.registerSubcommand(new EditCommand());
 	}
 
 	@Override

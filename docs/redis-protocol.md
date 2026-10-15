@@ -78,7 +78,8 @@ All names start with a configurable prefix, default `justbans:` (`redis.prefix` 
 | `justbans:commands` | Pub/Sub channel | web → plugin | Signed action requests |
 | `justbans:command-results` | Pub/Sub channel | plugin → web | One `COMMAND_RESULT` per command (broadcast; match on `requestId`) |
 | `justbans:online` | Hash | Velocity writes | field = player UUID, value = JSON string `{"name":"Notch","server":"lobby"}`. Informational "online now" view. Read with `HGETALL`. |
-| `justbans:node:<nodeId>` | String with TTL | — | Reserved for node heartbeats. **Not implemented**; use `PING` ([section 6.4](#64-ping)). |
+| `justbans:lock:expiry-sweeper` | String with TTL | plugins | Elects the node that announces expired punishments ([section 8](#8-events-plugin--everyone)). Internal: web backends neither read nor write it. |
+| `justbans:node:<nodeId>` | String with TTL | — | Reserved for node heartbeats. **Not implemented**; use `PING` ([section 6.5](#65-ping)). |
 
 Publish and subscribe use **separate connections**: a connection in subscribed mode cannot issue
 other commands. Subscribe to `command-results` *before* publishing a command, because Pub/Sub does not buffer.
@@ -145,7 +146,8 @@ sig       = Base64( HMAC-SHA256( secret, UTF-8(signing) ) )       -- standard al
 4. Numbers: written exactly as in the JSON text. **Use integers only** (no floats, no exponents, no `1.0`).
    Keep integers below 2^53 so JavaScript clients stay exact.
 5. `true`, `false`, `null` as literals. Arrays keep their order.
-6. Omit optional fields instead of sending `null`; the plugin treats both the same, but absent fields keep the signed text short.
+6. `null` is signed as the literal `null`, so a sender must also *send* it (never drop it from the wire text while signing it). Apart from the two
+   documented cases of `UPDATE_PUNISHMENT`, omit optional fields instead of sending `null`; the plugin treats both the same.
 
 ### 5.3 Reference implementations
 
@@ -232,12 +234,13 @@ Supported `type` values:
 |---|---|---|
 | `ISSUE_PUNISHMENT` | ban / tempban / server ban / warn / kick | every node with web commands enabled |
 | `REVOKE_PUNISHMENT` | pardon a ban, remove a warn | same |
+| `UPDATE_PUNISHMENT` | change the expiry, reason text or staff note | same |
 | `PING` | health check | same |
 | `RELOAD_REASONS` | re-read `reasons.yml` on the proxy | Velocity only |
 
 Anything else is answered `INVALID_REQUEST`. Nothing received over Redis is ever executed as console text.
 Schemas: [`issue-punishment`](schemas/issue-punishment.schema.json), [`revoke-punishment`](schemas/revoke-punishment.schema.json),
-[`command-result`](schemas/command-result.schema.json).
+[`update-punishment`](schemas/update-punishment.schema.json), [`command-result`](schemas/command-result.schema.json).
 
 ### 6.1 Exactly-once and retries
 
@@ -294,19 +297,39 @@ Identify the punishment either by `punishmentId` (exact, from an event or a prev
 
 Kicks cannot be revoked. Revoking something that is not active gives `NOT_ACTIVE`, a player without a ban gives `NOT_BANNED`.
 
-### 6.4 `PING`
+### 6.4 `UPDATE_PUNISHMENT`
+
+Edits an existing punishment. Send `punishmentId` and any of the three editable fields; fields that are **absent** stay as they are.
+
+| Field | Req. | Notes |
+|---|---|---|
+| `requestId`, `actor` | yes | as above |
+| `punishmentId` | yes | `jb_punishments.id` |
+| `expiresAt` | no | New **absolute** expiry in epoch milliseconds, or JSON `null` for permanent. Must be in the future (to end a punishment now, pardon it) and at most 10 years away. Only while the punishment is active; kicks have no expiry. |
+| `reasonText` | no | New reason shown to the player, 1 to 512 characters. The configured `reasonId` of the punishment is kept. |
+| `note` | no | New internal staff note ≤ 512 characters. An empty string or JSON `null` removes it. |
+
+- `expiresAt: null` and `note: null` are the only places where `null` means something. Send them as real JSON `null`; the signature covers `null` exactly like any other value ([section 5.2](#52-canonical-json)).
+- The reason and note can be corrected on any punishment, including pardoned and expired ones. An expiry change on one of those answers `NOT_ACTIVE`; a past or too-distant `expiresAt` answers `INVALID_DURATION`; no field at all answers `INVALID_REQUEST`.
+- Asking for the values the punishment already has succeeds (`OK`) and emits no event.
+- A successful edit appends a `PUNISHMENT_UPDATED` event ([section 8](#8-events-plugin--everyone)); the `OK` result carries `punishmentId` and `publicId`.
+- The same operation is available in game as `/justbans edit <id> <duration|reason|note> <value>` (permission `justbans.edit`).
+
+Example: [`examples/update-punishment.json`](schemas/examples/update-punishment.json). Schema: [`update-punishment`](schemas/update-punishment.schema.json).
+
+### 6.5 `PING`
 
 Payload: just `requestId`. Reply payload adds `"node":"<id of the answering node>","pong":true`. Use it for connectivity checks,
 for testing the secret, and as a liveness probe of the command path. Because exactly one node answers each request, it proves
 *a* node is alive, not every node.
 
-### 6.5 `RELOAD_REASONS`
+### 6.6 `RELOAD_REASONS`
 
 Payload: `requestId`. The proxy re-reads `reasons.yml`, syncs `jb_reasons`, and answers with `"reloaded": <number of reasons>`.
 Every node then reloads its catalogue on the resulting `REASONS_UPDATED` event. A file with errors gives `INVALID_REQUEST`
 and leaves the previous reasons active.
 
-### 6.6 `COMMAND_RESULT`
+### 6.7 `COMMAND_RESULT`
 
 Published on `justbans:command-results`, signed by the node that ran the command. Results are broadcast to all subscribers: match
 `payload.requestId` with the ones you are waiting for and ignore the rest.
@@ -358,9 +381,18 @@ Fields that are `NULL` in the database are omitted. Timestamps are epoch millise
 | `PUNISHMENT_REVOKED` | A ban was pardoned or a warn removed | `{"punishment":{…, "revoked":{"at","by","reason"}}}` |
 | `JOIN_DENIED` | A banned player tried to connect (at most one per player per minute; can be disabled with `join-denied-events`) | `{"punishment":{…}}` of the ban that blocked them |
 | `REASONS_UPDATED` | `reasons.yml` was synced | `{"reasons":["cheats","spam",…]}` (ids now defined) |
-| `PUNISHMENT_UPDATED`, `PUNISHMENT_EXPIRED`, `PLAYER_KICKED` | Reserved names, **never published in v1** | — |
+| `PUNISHMENT_UPDATED` | An edit changed the expiry, reason text or note | `{"punishment":{…}, "update":{"by":{actor},"changed":["expiresAt","reasonText","note"]}}`; `punishment` is the state after the edit and never contains the note's text |
+| `PUNISHMENT_EXPIRED` | A ban or warn's expiry passed (announced by the expiry sweeper, normally within a minute) | `{"punishment":{…}}` |
+| `PLAYER_KICKED` | Reserved name, **never published in v1** (a kick is a `PUNISHMENT_CREATED` with `type` `KICK`) | — |
 
-Expiry is not evented: a ban is active while `revoked` is absent and `expiresAt` is absent or in the future. Compute it yourself.
+**Computing "active".** A punishment is active while `revoked` is absent and `expiresAt` is absent or in the future, evaluated against *now* when you read it.
+`PUNISHMENT_EXPIRED` is a notification, not a state change: no database row changes when time passes, so never wait for the event to treat a ban as over.
+
+**The expiry sweeper.** Every node (proxy and Paper servers, `expiry-sweeper` / `Expiry_Sweeper` in their config) periodically tries
+`SET justbans:lock:expiry-sweeper <nodeId> NX PX <interval × 0.9>`. The node that gets the lock announces everything that expired since the last sweep, the
+others skip that round. Each expiry is claimed with a conditional update inside the transaction that appends its event, so there is exactly one
+`PUNISHMENT_EXPIRED` per punishment even if two sweepers race. Pardoned, permanent and kick punishments never expire-announce, and punishments that had already
+expired when the sweeper was introduced (database migration V2) are marked as announced without an event. If Redis is down no sweep runs; the backlog is announced when it returns.
 
 Complete signed examples: [`punishment-created.json`](schemas/examples/punishment-created.json),
 [`punishment-revoked.json`](schemas/examples/punishment-revoked.json).
@@ -415,7 +447,7 @@ rebuild from `jb_punishments` instead of replaying.
 
 - Require authentication and give each role its own ACL user restricted to the `justbans:` namespace. Example (adjust the prefix and passwords):
   ```
-  ACL SETUSER justbans-plugin on >PLUGIN_PASSWORD resetchannels &justbans:* ~justbans:* -@all +@pubsub +hset +hget +hdel +hgetall +multi +exec +del +ping +auth
+  ACL SETUSER justbans-plugin on >PLUGIN_PASSWORD resetchannels &justbans:* ~justbans:* -@all +@pubsub +set +hset +hget +hdel +hgetall +multi +exec +del +ping +auth
   ACL SETUSER justbans-web    on >WEB_PASSWORD    resetchannels &justbans:events &justbans:command-results &justbans:commands ~justbans:online -@all +subscribe +unsubscribe +publish +hget +hgetall +ping +auth
   ```
   Redis channel ACLs do not distinguish publish from subscribe, so the web user *can* technically publish on `justbans:events`.
@@ -440,7 +472,8 @@ rebuild from `jb_punishments` instead of replaying.
 These are deliberate scope limits of version 1, listed so the web team does not build on them:
 
 - **No node heartbeats.** `justbans:node:<nodeId>` is reserved but not written. `PING` and `jb_servers.last_heartbeat` are the only liveness signals.
-- **Reserved event types** `PUNISHMENT_UPDATED`, `PUNISHMENT_EXPIRED`, `PLAYER_KICKED` and the command `UPDATE_PUNISHMENT` are not implemented.
+- **`PLAYER_KICKED`** is a reserved event name and is never published; kicks arrive as `PUNISHMENT_CREATED` with `type` `KICK`.
+- **Expiry announcements need Redis.** The sweeper elects its node through Redis; while Redis is down no `PUNISHMENT_EXPIRED` is emitted (bans still expire correctly, because that is computed from the clock).
 - **Stuck commands.** If the node that claimed a `requestId` crashes before answering, that request stays `PROCESSING` and retries are ignored. Use a new
   `requestId` after verifying (via the database) that the punishment was not created.
 - **Target resolution is local.** Names resolve against players the network has seen; there is no Mojang lookup. Use UUIDs.
@@ -461,12 +494,13 @@ python3 tools/web-client.py ping                        # signs a PING, waits fo
 python3 tools/web-client.py listen                      # prints verified events, reports seq jumps
 python3 tools/web-client.py ban --player Notch --reason cheats --actor-name "Web: alice" --actor-ref 42
 python3 tools/web-client.py pardon --player Notch --reason "Appeal accepted" --actor-name "Web: alice"
+python3 tools/web-client.py edit --punishment-id 4211 --actor-name "Web: alice" --in 14d --reason-text "Flying near spawn"
 ```
 
 Exit codes: `0` OK, `1` the plugin answered `ERROR`, `2` no answer in time, `3` bad usage or Redis unreachable.
 
 How this is tested: `selftest` and `HmacSignerTest` pin the same vectors; `WebClientInteropTest` (opt-in: set `JUSTBANS_TEST_PYTHON` to a Python with
 redis-py, plus Redis and MariaDB as for the other integration tests, and run under a UTF-8 locale) runs the real client against the real
-`WebCommandHandler` and `OutboxPublisher`: ping, ban, duplicate ban, pardon, scoped tempban with an emoji reason, unknown player. It dumps every message to
+`WebCommandHandler` and `OutboxPublisher`: ping, ban, duplicate ban, pardon, scoped tempban with an emoji reason, edits (expiry, reason, note, permanent), a rejected edit, unknown player. It dumps every message to
 `justbans-common/target/interop/`, which `python3 tools/check-schemas.py justbans-common/target/interop/*.json` validates against the schemas
 (`pip install jsonschema`). `python3 tools/check-schemas.py docs/schemas/examples/*.json` validates the shipped examples.
