@@ -58,10 +58,11 @@ GRANT SELECT ON justbans.jb_events       TO 'justbans_web'@'10.0.0.%';
 GRANT SELECT ON justbans.jb_reasons      TO 'justbans_web'@'10.0.0.%';
 GRANT SELECT ON justbans.jb_servers      TO 'justbans_web'@'10.0.0.%';
 GRANT SELECT ON justbans.jb_player_names TO 'justbans_web'@'10.0.0.%';
+GRANT SELECT ON justbans.jb_command_log TO 'justbans_web'@'10.0.0.%';   -- request id -> status/result, to find out what became of a command that timed out
 -- jb_players has last_ip: grant every column except it
 GRANT SELECT (uuid, last_name, last_name_lower, first_seen, last_seen, last_server)
       ON justbans.jb_players TO 'justbans_web'@'10.0.0.%';
--- Deliberately NOT granted: INSERT/UPDATE/DELETE/DDL anywhere, jb_command_log, jb_schema_version.
+-- Deliberately NOT granted: INSERT/UPDATE/DELETE/DDL anywhere, jb_schema_version, and the last_ip column.
 ```
 
 Read from a replica if you have one. Do not run schema migrations from the web side: the plugin owns
