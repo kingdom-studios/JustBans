@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "id": "a1f3c5d7-0000-4000-8000-000000000002",
+  "type": "COMMAND_RESULT",
+  "ts": 1767225600040,
+  "node": "velocity-1",
+  "payload": {
+    "requestId": "b9a3f4c0-6a1e-4f0e-9d58-7c2f5e8a1d33",
+    "action": "ISSUE_PUNISHMENT",
+    "status": "OK",
+    "punishmentId": 4211,
+    "publicId": "K7Q2M9XA"
+  },
+  "sig": "dRlj0NJesW4iUsbz5p6hVA5QSebUca9ILiLYg2Ke+ls="
+}

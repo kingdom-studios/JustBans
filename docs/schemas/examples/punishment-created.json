@@ -1,0 +1,37 @@
+{
+  "v": 1,
+  "id": "bb260029-82b9-367b-93a0-94a6dca03ec8",
+  "type": "PUNISHMENT_CREATED",
+  "ts": 1767225600030,
+  "node": "velocity-1",
+  "payload": {
+    "punishment": {
+      "id": 4211,
+      "publicId": "K7Q2M9XA",
+      "type": "BAN",
+      "scope": {
+        "type": "NETWORK",
+        "target": "*"
+      },
+      "target": {
+        "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5",
+        "name": "Notch"
+      },
+      "actor": {
+        "type": "WEB",
+        "ref": "42",
+        "name": "Web: alice"
+      },
+      "reason": {
+        "id": "cheats",
+        "text": "Cheating / hacked client"
+      },
+      "createdAt": 1767225600030,
+      "expiresAt": 1767830400030,
+      "silent": false,
+      "originServer": "web"
+    }
+  },
+  "seq": 18842,
+  "sig": "4SYoCSdNdn7xmdHRv2OvFD00EBeE1jtZc4c1vpsgvLQ="
+}

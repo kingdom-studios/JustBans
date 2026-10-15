@@ -23,8 +23,12 @@
         <foundation.version>6.10.2</foundation.version>
         <foundation.path>com.github.kangarko</foundation.path>
 
-        <!-- TODO: confirm the exact Paper 26.2 API version string against repo.papermc.io. -->
-        <paper.version>26.2</paper.version>
+        <!-- Adventure used for compiling this module only (scope "provided": Paper ships its own at runtime).
+             It must be >= the version paper-api was built against: 5.2.0 is the first release containing
+             net.kyori.adventure.text.object.ObjectContentsLike, which Paper's Player/Audience types reference.
+             4.x versions (including 4.17.0) lack it and fail with "cannot access ObjectContentsLike".
+             justbans-common is compiled against the older ${adventure.version}; that is binary compatible. -->
+        <paper.adventure.version>5.2.0</paper.adventure.version>
 
         <!-- Fixed relocation target. Must NOT be derived from ${project.artifactId} ("justbans-paper"
              contains a hyphen, which is not a valid Java package name). -->
@@ -55,6 +59,33 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Explicit so the compile classpath always has Adventure, independent of how Maven resolves the
+             transitive tree (provided scope is not transitive, and justbans-common only declares it as provided). -->
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-key</artifactId>
+            <version>${paper.adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-api</artifactId>
+            <version>${paper.adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-minimessage</artifactId>
+            <version>${paper.adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-serializer-legacy</artifactId>
+            <version>${paper.adventure.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Offline exemption checks. Provided by the LuckPerms plugin at runtime (soft dependency). -->
         <dependency>
             <groupId>net.luckperms</groupId>
@@ -73,7 +104,7 @@
             <artifactId>Foundation</artifactId>
             <version>${foundation.version}</version>
             <exclusions>
-                <!-- Adventure must come from paper-api only (see the note in the parent POM). -->
+                <!-- Adventure is declared above (provided); never let Foundation drag its own copy in. -->
                 <exclusion>
                     <groupId>net.kyori</groupId>
                     <artifactId>*</artifactId>

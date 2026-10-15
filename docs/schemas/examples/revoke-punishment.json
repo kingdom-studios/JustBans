@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "id": "a1f3c5d7-0000-4000-8000-000000000004",
+  "type": "REVOKE_PUNISHMENT",
+  "ts": 1767226000000,
+  "node": "web-1",
+  "payload": {
+    "requestId": "d4e5f6a7-6a1e-4f0e-9d58-7c2f5e8a1d35",
+    "actor": {
+      "name": "Web: alice",
+      "ref": "42"
+    },
+    "punishmentId": 4211,
+    "reason": "Appeal accepted"
+  },
+  "sig": "NXH/dYfjmLePdUwKT6FFn5JEQ5d9Nu/he6lzchHdRfQ="
+}

@@ -399,8 +399,9 @@ references, so a removed reason or a decommissioned server never breaks history.
 
 ## 4. Redis protocol
 
-The protocol gets its own spec file, `docs/redis-protocol.md`, in Phase 5. That file is
-what the web team builds against. A draft of it follows.
+The authoritative protocol spec is `docs/redis-protocol.md` (written in Phase 5), with JSON
+Schemas in `docs/schemas/` and a reference client in `tools/web-client.py`. That is what the
+web team builds against; the draft below is kept for context and may lag behind it.
 
 ### 4.1 Channels and keys
 

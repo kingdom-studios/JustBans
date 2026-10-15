@@ -34,6 +34,31 @@ class HmacSignerTest {
 		return new Envelope(1, "8d3c1c9e-0000-4000-8000-000000000001", "PUNISHMENT_CREATED", 1760430000123L, "velocity-1", 18842L, payload, null);
 	}
 
+	/** The vectors printed in docs/redis-protocol.md and asserted by tools/web-client.py selftest. */
+	@Test
+	void matchesPublishedProtocolVectors() {
+		final HmacSigner published = new HmacSigner("justbans-test-secret-0123456789");
+
+		final JsonObject payload = new JsonObject();
+		payload.addProperty("requestId", "0b7d8c2e-52a1-4f7e-8d2a-3a0c9f1b6e44");
+		payload.addProperty("note", "caf\u00e9 \"quoted\" \\ \u0001");
+
+		final Envelope ping = new Envelope(1, "6f0b1a52-3d1e-4c58-9a57-0a1d5d3f2b10", "PING", 1767225600000L, "web-1", null, payload, null);
+
+		assertEquals("1|6f0b1a52-3d1e-4c58-9a57-0a1d5d3f2b10|PING|1767225600000|web-1||{\"note\":\"caf\u00e9 \\\"quoted\\\" \\\\ \\u0001\",\"requestId\":\"0b7d8c2e-52a1-4f7e-8d2a-3a0c9f1b6e44\"}", ping.signingString());
+		assertEquals("NGxZ/e4tqNzxw1H1mtRp+wRST/LQiCBYQHUgzzBWEuQ=", published.sign(ping).sig());
+
+		final JsonObject punishment = new JsonObject();
+		punishment.addProperty("id", 7);
+		punishment.addProperty("publicId", "A1B2C3D4");
+		final JsonObject eventPayload = new JsonObject();
+		eventPayload.add("punishment", punishment);
+
+		final Envelope revoked = new Envelope(1, "6f0b1a52-3d1e-4c58-9a57-0a1d5d3f2b11", "PUNISHMENT_REVOKED", 1767225601234L, "velocity-1", 42L, eventPayload, null);
+
+		assertEquals("zs8ngliPqgtlX+fq8Vq3jk7zzvRWFdJ6MiGRbNmMVls=", published.sign(revoked).sig());
+	}
+
 	@Test
 	void matchesKnownVectors() {
 		assertEquals(HELLO_SIGNATURE, signer.sign("hello"));

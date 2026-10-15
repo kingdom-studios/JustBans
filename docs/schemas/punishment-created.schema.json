@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/punishment-created.schema.json",
+  "title": "PUNISHMENT_CREATED event",
+  "description": "Published on justbans:events after a ban, warn or kick has been committed to the database. PUNISHMENT_REVOKED has the same shape with `payload.punishment.revoked` set, so the same schema family applies (change the `type` const).",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "required": ["seq", "payload"],
+  "properties": {
+    "type": { "const": "PUNISHMENT_CREATED" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "payload": {
+      "type": "object",
+      "required": ["punishment"],
+      "properties": {
+        "punishment": { "$ref": "punishment.schema.json" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

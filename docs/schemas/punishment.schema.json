@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/punishment.schema.json",
+  "title": "JustBans punishment snapshot",
+  "description": "The punishment object carried by PUNISHMENT_CREATED, PUNISHMENT_REVOKED and JOIN_DENIED events. Fields that are null in the database are omitted. The internal staff note is never included.",
+  "type": "object",
+  "required": ["id", "publicId", "type", "scope", "target", "actor", "reason", "createdAt", "silent"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1, "description": "jb_punishments.id. Use this for REVOKE_PUNISHMENT." },
+    "publicId": { "type": "string", "pattern": "^[A-HJ-NP-Z2-9]{8}$", "description": "The short id players see (#K9NCEJGD)." },
+    "type": { "enum": ["BAN", "WARN", "KICK"] },
+    "scope": {
+      "type": "object",
+      "required": ["type", "target"],
+      "properties": {
+        "type": { "enum": ["NETWORK", "SERVER", "GROUP"] },
+        "target": { "type": "string", "minLength": 1, "maxLength": 64, "description": "\"*\" for NETWORK, otherwise a server id or server group name." }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["uuid", "name"],
+      "properties": {
+        "uuid": { "type": "string", "format": "uuid" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 16, "description": "Name at the time of the punishment." }
+      },
+      "additionalProperties": false
+    },
+    "actor": { "$ref": "#/$defs/actor" },
+    "reason": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 32, "description": "Configured reason id; absent for custom reasons." },
+        "text": { "type": "string", "maxLength": 512 }
+      },
+      "additionalProperties": false
+    },
+    "createdAt": { "type": "integer", "minimum": 0, "description": "Epoch milliseconds." },
+    "expiresAt": { "type": "integer", "minimum": 0, "description": "Epoch milliseconds. Absent for permanent bans, warns and kicks." },
+    "silent": { "type": "boolean" },
+    "originServer": { "type": "string", "maxLength": 64, "description": "Server the command ran on; \"web\" for punishments issued through Redis." },
+    "ladderStep": { "type": "integer", "minimum": 0, "description": "Escalation step that picked the duration, if the reason has a ladder." },
+    "revoked": {
+      "type": "object",
+      "description": "Present only once the punishment has been pardoned or unwarned.",
+      "required": ["at", "by"],
+      "properties": {
+        "at": { "type": "integer", "minimum": 0 },
+        "by": { "$ref": "#/$defs/actor" },
+        "reason": { "type": "string", "maxLength": 512 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "enum": ["PLAYER", "CONSOLE", "WEB", "SYSTEM"] },
+        "uuid": { "type": "string", "format": "uuid", "description": "Only for PLAYER actors." },
+        "ref": { "type": "string", "maxLength": 64, "description": "External reference, e.g. the web panel user id of a WEB actor." },
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

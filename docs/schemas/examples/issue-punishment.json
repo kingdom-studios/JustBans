@@ -1,0 +1,23 @@
+{
+  "v": 1,
+  "id": "a1f3c5d7-0000-4000-8000-000000000001",
+  "type": "ISSUE_PUNISHMENT",
+  "ts": 1767225600000,
+  "node": "web-1",
+  "payload": {
+    "requestId": "b9a3f4c0-6a1e-4f0e-9d58-7c2f5e8a1d33",
+    "actor": {
+      "name": "Web: alice",
+      "ref": "42"
+    },
+    "target": {
+      "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5"
+    },
+    "kind": "TEMPBAN",
+    "reasonId": "cheats",
+    "duration": "7d",
+    "silent": false,
+    "note": "seen flying, ticket 1187"
+  },
+  "sig": "ekTWdVz1ONSZ2mM42lchm1c5l8QGZsxcE/mMSSrn4Wg="
+}

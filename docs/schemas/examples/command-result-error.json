@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "id": "a1f3c5d7-0000-4000-8000-000000000003",
+  "type": "COMMAND_RESULT",
+  "ts": 1767225700040,
+  "node": "velocity-1",
+  "payload": {
+    "requestId": "c1d2e3f4-6a1e-4f0e-9d58-7c2f5e8a1d34",
+    "action": "ISSUE_PUNISHMENT",
+    "status": "ERROR",
+    "error": "ALREADY_BANNED",
+    "message": "Notch already has an active ban in this scope (#K7Q2M9XA)"
+  },
+  "sig": "8uH/CK2Yxv2MqdAk46Of6+YAvBSy6Z9VLqs5e1S83Ho="
+}

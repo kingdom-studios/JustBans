@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/issue-punishment.schema.json",
+  "title": "ISSUE_PUNISHMENT command",
+  "description": "Sent by the web backend on justbans:commands to ban, tempban, warn or kick a player. The plugin answers with a COMMAND_RESULT carrying the same requestId. The schema is deliberately strict (no unknown fields) so typos are caught on the web side; the plugin itself ignores unknown fields.",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "properties": {
+    "type": { "const": "ISSUE_PUNISHMENT" },
+    "seq": false,
+    "payload": {
+      "type": "object",
+      "required": ["requestId", "actor", "target", "kind"],
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Idempotency key. Generate one per user action and reuse it when retrying: the command executes at most once, a retry returns the stored result."
+        },
+        "actor": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 64, "description": "Shown in-game and in history, e.g. \"Web: alice\"." },
+            "ref": { "type": "string", "maxLength": 64, "description": "Your panel's user id; stored with the punishment for auditing." }
+          },
+          "additionalProperties": false
+        },
+        "target": {
+          "type": "object",
+          "description": "A player the network has seen before. Prefer uuid; a name is resolved from jb_players and fails with UNKNOWN_PLAYER if unknown or ambiguous.",
+          "anyOf": [{ "required": ["uuid"] }, { "required": ["name"] }],
+          "properties": {
+            "uuid": { "type": "string", "format": "uuid" },
+            "name": { "type": "string", "minLength": 1, "maxLength": 16 }
+          },
+          "additionalProperties": false
+        },
+        "kind": {
+          "enum": ["BAN", "TEMPBAN", "SERVER_BAN", "SERVER_TEMPBAN", "WARN", "KICK"],
+          "description": "BAN/TEMPBAN with a SERVER or GROUP scope are treated as SERVER_BAN/SERVER_TEMPBAN. TEMPBAN kinds require a finite duration (from `duration` or the reason's default)."
+        },
+        "scope": {
+          "type": "object",
+          "description": "Where the ban applies. Omit for the whole network. Required for SERVER_BAN and SERVER_TEMPBAN.",
+          "required": ["type"],
+          "properties": {
+            "type": { "enum": ["NETWORK", "SERVER", "GROUP"] },
+            "target": { "type": "string", "minLength": 1, "maxLength": 64, "description": "Server id or group name; ignored for NETWORK." }
+          },
+          "if": { "properties": { "type": { "enum": ["SERVER", "GROUP"] } }, "required": ["type"] },
+          "then": { "required": ["target"] },
+          "additionalProperties": false
+        },
+        "reasonId": { "type": "string", "minLength": 1, "maxLength": 32, "description": "A reason id from reasons.yml (jb_reasons). Wins over customReason when both are given." },
+        "customReason": { "type": "string", "minLength": 1, "maxLength": 512, "description": "Free text, used when no reasonId is given. Longer text is truncated." },
+        "duration": {
+          "type": "string",
+          "pattern": "^([0-9]+(mo|y|w|d|h|m|s)\\s*)+$|^(perm|permanent)$",
+          "description": "e.g. 30d, 1d12h, 90m, perm (lower case). Omit to use the reason's default duration. Maximum 10 years."
+        },
+        "silent": { "type": "boolean", "default": false, "description": "Do not broadcast to players (staff are still alerted)." },
+        "note": { "type": "string", "maxLength": 512, "description": "Internal staff note, never shown to the player or put in events." },
+        "force": { "type": "boolean", "default": false, "description": "Replace an existing active ban in the same scope instead of failing with ALREADY_BANNED. It does not bypass exemptions: players holding justbans.exempt still answer TARGET_EXEMPT." }
+      },
+      "anyOf": [{ "required": ["reasonId"] }, { "required": ["customReason"] }],
+      "additionalProperties": false
+    }
+  }
+}

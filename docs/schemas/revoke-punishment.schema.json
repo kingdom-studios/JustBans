@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/revoke-punishment.schema.json",
+  "title": "REVOKE_PUNISHMENT command",
+  "description": "Pardons a ban or removes a warn. Address the punishment either by `punishmentId` (exact) or by `target` + `kind` (+ `scope` for bans).",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "properties": {
+    "type": { "const": "REVOKE_PUNISHMENT" },
+    "seq": false,
+    "payload": {
+      "type": "object",
+      "required": ["requestId", "actor"],
+      "properties": {
+        "requestId": { "type": "string", "format": "uuid" },
+        "actor": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+            "ref": { "type": "string", "maxLength": 64 }
+          },
+          "additionalProperties": false
+        },
+        "reason": { "type": "string", "maxLength": 512, "description": "Why it is being lifted (shown in history)." },
+        "punishmentId": { "type": "integer", "minimum": 1, "description": "jb_punishments.id from an event or a COMMAND_RESULT." },
+        "target": {
+          "type": "object",
+          "anyOf": [{ "required": ["uuid"] }, { "required": ["name"] }],
+          "properties": {
+            "uuid": { "type": "string", "format": "uuid" },
+            "name": { "type": "string", "minLength": 1, "maxLength": 16 }
+          },
+          "additionalProperties": false
+        },
+        "kind": { "enum": ["BAN", "TEMPBAN", "WARN"], "default": "BAN", "description": "BAN lifts the ban in `scope` (network by default); WARN removes the player's most recent active warn." },
+        "scope": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "enum": ["NETWORK", "SERVER", "GROUP"] },
+            "target": { "type": "string", "minLength": 1, "maxLength": 64 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "oneOf": [{ "required": ["punishmentId"] }, { "required": ["target"] }],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/envelope.schema.json",
+  "title": "JustBans Redis envelope",
+  "description": "The wrapper around every message on the justbans:events, justbans:commands and justbans:command-results channels. Every message on the wire carries `sig`. See docs/redis-protocol.md for how `sig` is computed.",
+  "type": "object",
+  "required": ["v", "id", "type", "ts", "node", "payload", "sig"],
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Protocol version. Messages with any other value are dropped."
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Message UUID, used for de-duplication. Events use a stable id derived from `seq`, so a re-published event has the same id."
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "Message type, e.g. PUNISHMENT_CREATED, ISSUE_PUNISHMENT, COMMAND_RESULT."
+    },
+    "ts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Creation time in epoch milliseconds (UTC). Commands whose ts is more than max-skew-seconds (default 30) away from the plugin's clock are rejected with EXPIRED_REQUEST."
+    },
+    "node": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Id of the sending node: `node-id` of a plugin instance, or any stable name the web backend picks (e.g. web-1)."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Only on events: the jb_events.id of the event. A resume cursor for catching up from the database, not a gap-free counter. Absent on commands and results."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Message body, depends on `type`."
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]{43}=$",
+      "description": "Standard Base64 (with padding) of the 32-byte HMAC-SHA256 over v|id|type|ts|node|seq|canonical(payload)."
+    }
+  }
+}

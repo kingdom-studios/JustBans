@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kingdomcraft.pl/justbans/schemas/command-result.schema.json",
+  "title": "COMMAND_RESULT",
+  "description": "The plugin's answer to every command, published on justbans:command-results. Results are broadcast: match yours by payload.requestId.",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "type": "object",
+  "properties": {
+    "type": { "const": "COMMAND_RESULT" },
+    "payload": {
+      "type": "object",
+      "required": ["requestId", "action", "status"],
+      "properties": {
+        "requestId": { "type": "string", "format": "uuid" },
+        "action": { "type": "string", "description": "The type of the command this answers." },
+        "status": { "enum": ["OK", "ERROR"] },
+        "punishmentId": { "type": "integer", "description": "ISSUE_PUNISHMENT / REVOKE_PUNISHMENT: the affected jb_punishments.id." },
+        "publicId": { "type": "string" },
+        "node": { "type": "string", "description": "PING: id of the node that answered." },
+        "pong": { "type": "boolean" },
+        "error": {
+          "enum": ["UNKNOWN_PLAYER", "UNKNOWN_REASON", "REASON_TYPE_NOT_ALLOWED", "ALREADY_BANNED", "NOT_BANNED", "UNKNOWN_PUNISHMENT", "NOT_ACTIVE", "TARGET_EXEMPT", "INVALID_DURATION", "INVALID_REQUEST", "UNKNOWN_SERVER", "BAD_SIGNATURE", "EXPIRED_REQUEST", "INTERNAL"],
+          "description": "Present when status is ERROR."
+        },
+        "message": { "type": "string", "description": "Human-readable English explanation for logs. Do not parse it; branch on `error`." }
+      },
+      "if": { "properties": { "status": { "const": "ERROR" } }, "required": ["status"] },
+      "then": { "required": ["error", "message"] }
+    }
+  }
+}
