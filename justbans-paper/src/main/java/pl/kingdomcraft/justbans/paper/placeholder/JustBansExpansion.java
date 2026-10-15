@@ -29,6 +29,17 @@ import pl.kingdomcraft.justbans.paper.settings.Settings;
 @AutoRegister
 public final class JustBansExpansion extends SimpleExpansion {
 
+	/**
+	 * Foundation insists that an auto-registered expansion is a singleton: exactly one private no-args constructor and a
+	 * private static final field holding the instance. It finds the instance through this field by reflection, so the
+	 * field is never read from code.
+	 */
+	@SuppressWarnings("unused")
+	private static final JustBansExpansion instance = new JustBansExpansion();
+
+	private JustBansExpansion() {
+	}
+
 	@Override
 	protected String onReplace(CommandSender sender, String identifier) {
 		if (!PlaceholderValues.isKnown(identifier))
