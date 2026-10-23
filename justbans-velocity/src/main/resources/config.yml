@@ -16,6 +16,11 @@ database:
   password: ""
   pool-size: 8
   connection-timeout-ms: 10000
+  # A pooled connection is replaced after this long, and idle ones are pinged this often. Both keep a database server or firewall
+  # that closes quiet connections (MariaDB wait_timeout, idle limits) from leaving dead ones in the pool. Keep max-lifetime-ms
+  # below the shortest such limit. keepalive-ms: 0 turns the ping off, otherwise it must be 30000 or more and below max-lifetime-ms.
+  max-lifetime-ms: 600000
+  keepalive-ms: 60000
   # Extra JDBC URL parameters, e.g. { useSsl: "true" }
   properties: {}
 

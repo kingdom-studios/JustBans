@@ -5,6 +5,8 @@ import java.util.List;
 import org.mineacademy.fo.Valid;
 import org.mineacademy.fo.settings.SimpleSettings;
 
+import pl.kingdomcraft.justbans.common.database.DatabaseConfig;
+
 /**
  * settings.yml. Foundation loads this class automatically (it extends {@link SimpleSettings}) before the plugin starts and
  * again on {@code /justbans reload}; every {@code private static void init()} below is invoked by reflection. All fields
@@ -47,6 +49,8 @@ public final class Settings extends SimpleSettings {
 		public static String PASSWORD;
 		public static Integer POOL_SIZE;
 		public static Integer CONNECTION_TIMEOUT_MILLIS;
+		public static Integer MAX_LIFETIME_MILLIS;
+		public static Integer KEEPALIVE_MILLIS;
 
 		private static void init() {
 			setPathPrefix("Database");
@@ -58,8 +62,13 @@ public final class Settings extends SimpleSettings {
 			PASSWORD = getString("Password");
 			POOL_SIZE = getInteger("Pool_Size");
 			CONNECTION_TIMEOUT_MILLIS = getInteger("Connection_Timeout_Millis");
+			MAX_LIFETIME_MILLIS = getInteger("Max_Lifetime_Millis");
+			KEEPALIVE_MILLIS = getInteger("Keepalive_Millis");
 
 			Valid.checkBoolean(PORT > 0 && PORT <= 65535, "Database.Port must be between 1 and 65535");
+			Valid.checkBoolean(MAX_LIFETIME_MILLIS >= DatabaseConfig.MIN_MAX_LIFETIME_MS, "Database.Max_Lifetime_Millis must be at least " + DatabaseConfig.MIN_MAX_LIFETIME_MS);
+			Valid.checkBoolean(KEEPALIVE_MILLIS == 0 || (KEEPALIVE_MILLIS >= DatabaseConfig.MIN_KEEPALIVE_MS && KEEPALIVE_MILLIS < MAX_LIFETIME_MILLIS),
+					"Database.Keepalive_Millis must be 0 (off), or at least " + DatabaseConfig.MIN_KEEPALIVE_MS + " and less than Database.Max_Lifetime_Millis");
 			Valid.checkBoolean(POOL_SIZE >= 1 && POOL_SIZE <= 100, "Database.Pool_Size must be between 1 and 100");
 		}
 	}

@@ -31,6 +31,8 @@ class ConfigLoaderTest {
 		assertEquals("127.0.0.1", config.database().host());
 		assertEquals(3306, config.database().port());
 		assertEquals("jb", config.database().database());
+		assertEquals(600_000, config.database().maxLifetimeMs());
+		assertEquals(60_000, config.database().keepaliveMs());
 		assertEquals(6379, config.redis().port());
 		assertNull(config.redis().password());
 		assertEquals("justbans:", config.redis().prefix());
@@ -52,7 +54,7 @@ class ConfigLoaderTest {
 		final PluginConfig config = ConfigLoader.parse(yaml("""
 				node-id: proxy-eu
 				web-secret: "0123456789abcdef-secret"
-				database: { host: db.local, port: 3307, name: jb, user: u, password: p, pool-size: 4, connection-timeout-ms: 5000, properties: { useSsl: "true" } }
+				database: { host: db.local, port: 3307, name: jb, user: u, password: p, pool-size: 4, connection-timeout-ms: 5000, max-lifetime-ms: 120000, keepalive-ms: 45000, properties: { useSsl: "true" } }
 				redis: { host: r.local, port: 6380, user: acl, password: rp, ssl: true, database: 2, prefix: "net1:", connect-timeout-ms: 2000 }
 				web-commands: { enabled: false, max-skew-seconds: 10 }
 				on-database-error: DENY
@@ -72,6 +74,8 @@ class ConfigLoaderTest {
 		assertEquals("db.local", config.database().host());
 		assertEquals(3307, config.database().port());
 		assertEquals(4, config.database().poolSize());
+		assertEquals(120_000, config.database().maxLifetimeMs());
+		assertEquals(45_000, config.database().keepaliveMs());
 		assertTrue(config.database().jdbcUrl().contains("useSsl=true"));
 		assertEquals("acl", config.redis().user());
 		assertEquals("rp", config.redis().password());
@@ -91,6 +95,21 @@ class ConfigLoaderTest {
 		assertEquals(java.util.List.of("lobby", "hub"), config.fallbackServers());
 		assertEquals("2026-10-14 14:00", config.dateFormat().format(Instant.parse("2026-10-14T12:00:00Z")));
 		assertEquals("<red>no <server>", config.messages().serverBanned());
+	}
+
+	@Test
+	void rejectsPoolLifetimesTheDatabasePoolWouldIgnore() throws Exception {
+		final ConfigException ex = assertThrows(ConfigException.class, () -> ConfigLoader.parse(yaml("""
+				web-secret: "0123456789abcdef-secret"
+				database: { name: jb, user: u, max-lifetime-ms: 60000, keepalive-ms: 60000 }
+				""")));
+
+		assertTrue(String.join("\n", ex.problems()).contains("keepalive-ms"), String.join("\n", ex.problems()));
+
+		assertEquals(0, ConfigLoader.parse(yaml("""
+				web-secret: "0123456789abcdef-secret"
+				database: { name: jb, user: u, keepalive-ms: 0 }
+				""")).database().keepaliveMs(), "0 switches the keepalive off");
 	}
 
 	@Test

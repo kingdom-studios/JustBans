@@ -29,6 +29,7 @@ import redis.clients.jedis.JedisClientConfig;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.params.SetParams;
 
 /**
@@ -49,6 +50,8 @@ public final class RedisBus implements AutoCloseable {
 	private static final long MAX_BACKOFF_MS = 30_000;
 	private static final long PING_INTERVAL_SECONDS = 15;
 	private static final int SUBSCRIBER_SOCKET_TIMEOUT_MS = 45_000;
+	private static final int MIN_READ_TIMEOUT_MS = 1_000;
+	private static final int MAX_READ_TIMEOUT_MS = 3_000;
 
 	/**
 	 * A received message.
@@ -112,7 +115,7 @@ public final class RedisBus implements AutoCloseable {
 				.ssl(config.ssl())
 				.database(config.database())
 				.connectionTimeoutMillis(config.connectTimeoutMs())
-				.socketTimeoutMillis(config.connectTimeoutMs());
+				.socketTimeoutMillis(readTimeoutMs(config));
 
 		final HostAndPort address = new HostAndPort(config.host(), config.port());
 		final JedisPoolConfig poolConfig = new JedisPoolConfig();
@@ -120,7 +123,13 @@ public final class RedisBus implements AutoCloseable {
 		poolConfig.setMaxTotal(8);
 		poolConfig.setMaxIdle(4);
 		poolConfig.setMinIdle(0);
-		poolConfig.setTestOnBorrow(true);
+
+		// No validation by the pool. A PING per borrow (or per idle connection) makes every dead connection cost one full read
+		// timeout, one after the other, and logs a stack trace for each. Instead execute() recovers from a dead connection
+		// itself: it drops all idle connections at once and retries once on a fresh one. Idle connections are still closed
+		// by the pool's own eviction after a minute, so a stale one rarely survives long.
+		poolConfig.setTestOnBorrow(false);
+		poolConfig.setTestWhileIdle(false);
 
 		this.publishPool = new JedisPool(poolConfig, address, client.build());
 
@@ -247,6 +256,64 @@ public final class RedisBus implements AutoCloseable {
 	}
 
 	/**
+	 * How long a command on the shared pool may wait for Redis. Commands here are tiny (PUBLISH, HSET, SET NX, HGETALL of a player
+	 * list), so even a slow link answers in milliseconds; a longer wait only means a dead connection takes longer to notice.
+	 */
+	private static int readTimeoutMs(RedisConfig config) {
+		return Math.max(MIN_READ_TIMEOUT_MS, Math.min(config.connectTimeoutMs(), MAX_READ_TIMEOUT_MS));
+	}
+
+	/** One Redis operation on a pooled connection. */
+	@FunctionalInterface
+	private interface RedisCall<T> {
+		T call(Jedis jedis);
+	}
+
+	/**
+	 * Runs the call on a pooled connection and turns every failure into a {@link BusException}.
+	 *
+	 * <p>A pooled connection can be dead without the pool knowing: a NAT or firewall dropped it after being idle, Redis restarted,
+	 * the network blinked. The first command on it then fails with a connection error (after the read timeout). When that happens
+	 * on a connection that was already in the pool, every other idle connection is probably dead for the same reason, so all of
+	 * them are discarded and the call is retried once on a fresh connection. All operations here are safe to repeat: events
+	 * carry a stable id and are de-duplicated by every receiver, hash writes are idempotent, and the sweeper lock tolerates a
+	 * repeated request (the worst case is that one sweep round is skipped). If there was no idle connection to blame, the
+	 * failure is a genuine outage and is reported straight away instead of waiting out a second timeout.
+	 */
+	private <T> T execute(String what, RedisCall<T> call) {
+		final boolean pooled = this.publishPool.getNumIdle() > 0;
+
+		try {
+			return this.attempt(call);
+
+		} catch (final JedisConnectionException first) {
+			if (!pooled)
+				throw new BusException(what + ": " + first.getMessage(), first);
+
+			this.trace(() -> what + ": a pooled connection was dead (" + first.getMessage() + "), dropping idle connections and retrying once");
+			this.logger.log(Level.FINE, "Dropping idle Redis connections after: " + first.getMessage());
+
+			try {
+				this.publishPool.clear();
+
+				return this.attempt(call);
+
+			} catch (final RuntimeException second) {
+				throw new BusException(what + ": " + second.getMessage(), second);
+			}
+
+		} catch (final RuntimeException ex) {
+			throw new BusException(what + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	private <T> T attempt(RedisCall<T> call) {
+		try (Jedis jedis = this.publishPool.getResource()) {
+			return call.call(jedis);
+		}
+	}
+
+	/**
 	 * Signs and publishes the envelope.
 	 *
 	 * @return number of subscribers that received it (0 is not an error: the database is the source of truth)
@@ -258,17 +325,17 @@ public final class RedisBus implements AutoCloseable {
 		if (json.length() > MAX_MESSAGE_LENGTH)
 			throw new BusException("Message of type " + envelope.type() + " is " + json.length() + " characters, over the " + MAX_MESSAGE_LENGTH + " limit");
 
-		try (Jedis jedis = this.publishPool.getResource()) {
-			final long receivers = jedis.publish(channel, json);
+		try {
+			final long receivers = this.execute("Could not publish to " + channel, jedis -> jedis.publish(channel, json));
 
 			this.trace(() -> "published " + envelope.type() + " seq=" + envelope.seq() + " (" + json.length() + " chars) on " + channel + " to " + receivers + " subscriber(s)");
 
 			return receivers;
 
-		} catch (final RuntimeException ex) {
+		} catch (final BusException ex) {
 			this.trace(() -> "publish of " + envelope.type() + " on " + channel + " failed: " + ex.getMessage());
 
-			throw new BusException("Could not publish to " + channel + ": " + ex.getMessage(), ex);
+			throw ex;
 		}
 	}
 
@@ -284,16 +351,11 @@ public final class RedisBus implements AutoCloseable {
 		if (ttlMillis <= 0)
 			throw new IllegalArgumentException("ttlMillis must be positive");
 
-		try (Jedis jedis = this.publishPool.getResource()) {
-			final boolean acquired = "OK".equals(jedis.set(key, owner, SetParams.setParams().nx().px(ttlMillis)));
+		final boolean acquired = this.execute("Could not take lock " + key, jedis -> "OK".equals(jedis.set(key, owner, SetParams.setParams().nx().px(ttlMillis))));
 
-			this.trace(() -> "lock " + key + (acquired ? " acquired" : " held by another node") + " (ttl " + ttlMillis + " ms)");
+		this.trace(() -> "lock " + key + (acquired ? " acquired" : " held by another node") + " (ttl " + ttlMillis + " ms)");
 
-			return acquired;
-
-		} catch (final RuntimeException ex) {
-			throw new BusException("Could not take lock " + key + ": " + ex.getMessage(), ex);
-		}
+		return acquired;
 	}
 
 	// ------------------------------------------------------------------------------------------
@@ -302,38 +364,23 @@ public final class RedisBus implements AutoCloseable {
 
 	/** @throws BusException if Redis is unreachable */
 	public void hashPut(String key, String field, String value) {
-		try (Jedis jedis = this.publishPool.getResource()) {
-			jedis.hset(key, field, value);
-
-		} catch (final RuntimeException ex) {
-			throw new BusException("Could not write " + key + ": " + ex.getMessage(), ex);
-		}
+		this.execute("Could not write " + key, jedis -> jedis.hset(key, field, value));
 	}
 
 	/** @return the value, or null if the field is absent
 	 * @throws BusException if Redis is unreachable */
 	public String hashGet(String key, String field) {
-		try (Jedis jedis = this.publishPool.getResource()) {
-			return jedis.hget(key, field);
-
-		} catch (final RuntimeException ex) {
-			throw new BusException("Could not read " + key + ": " + ex.getMessage(), ex);
-		}
+		return this.execute("Could not read " + key, jedis -> jedis.hget(key, field));
 	}
 
 	/** @throws BusException if Redis is unreachable */
 	public void hashRemove(String key, String field) {
-		try (Jedis jedis = this.publishPool.getResource()) {
-			jedis.hdel(key, field);
-
-		} catch (final RuntimeException ex) {
-			throw new BusException("Could not write " + key + ": " + ex.getMessage(), ex);
-		}
+		this.execute("Could not write " + key, jedis -> jedis.hdel(key, field));
 	}
 
 	/** Atomically replaces the whole hash (an empty map just deletes it). */
 	public void hashReplace(String key, Map<String, String> entries) {
-		try (Jedis jedis = this.publishPool.getResource()) {
+		this.execute("Could not write " + key, jedis -> {
 			final redis.clients.jedis.Transaction transaction = jedis.multi();
 
 			transaction.del(key);
@@ -343,18 +390,13 @@ public final class RedisBus implements AutoCloseable {
 
 			transaction.exec();
 
-		} catch (final RuntimeException ex) {
-			throw new BusException("Could not write " + key + ": " + ex.getMessage(), ex);
-		}
+			return null;
+		});
 	}
 
+	/** @throws BusException if Redis is unreachable */
 	public Map<String, String> hashGetAll(String key) {
-		try (Jedis jedis = this.publishPool.getResource()) {
-			return jedis.hgetAll(key);
-
-		} catch (final RuntimeException ex) {
-			throw new BusException("Could not read " + key + ": " + ex.getMessage(), ex);
-		}
+		return this.execute("Could not read " + key, jedis -> jedis.hgetAll(key));
 	}
 
 	// ------------------------------------------------------------------------------------------

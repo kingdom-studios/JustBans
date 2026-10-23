@@ -130,11 +130,16 @@ public final class ConfigLoader {
 		final String password = problems.string(db.node("password"), "");
 		final int pool = problems.integer(db.node("pool-size"), 8, 1, 100);
 		final int timeout = problems.integer(db.node("connection-timeout-ms"), 10_000, 250, 600_000);
+		final int maxLifetime = problems.integer(db.node("max-lifetime-ms"), (int) DatabaseConfig.DEFAULT_MAX_LIFETIME_MS, (int) DatabaseConfig.MIN_MAX_LIFETIME_MS, 86_400_000);
+		final int keepalive = problems.integer(db.node("keepalive-ms"), (int) DatabaseConfig.DEFAULT_KEEPALIVE_MS, 0, 86_400_000);
+
+		if (keepalive != 0 && (keepalive < DatabaseConfig.MIN_KEEPALIVE_MS || keepalive >= maxLifetime))
+			problems.add("database.keepalive-ms must be 0 (off), or at least " + DatabaseConfig.MIN_KEEPALIVE_MS + " and less than database.max-lifetime-ms");
 
 		if (problems.list().size() > before)
 			return null; // errors are already recorded; the caller throws before using this
 
-		return new DatabaseConfig(host, port, name, user, password, pool, timeout, properties);
+		return new DatabaseConfig(host, port, name, user, password, pool, timeout, maxLifetime, keepalive, properties);
 	}
 
 	private static String emptyToNull(String value) {

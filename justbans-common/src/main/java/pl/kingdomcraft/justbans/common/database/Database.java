@@ -42,6 +42,17 @@ public final class Database implements AutoCloseable {
 	private volatile CallObserver observer = kind -> NOTHING;
 
 	public Database(DatabaseConfig config) {
+		this.dataSource = new HikariDataSource(hikariConfig(config));
+		this.executor = Executors.newFixedThreadPool(config.poolSize(), new NamedThreadFactory());
+	}
+
+	/**
+	 * The pool settings. Besides the sizes, two things keep it healthy on servers that close quiet connections (MariaDB's
+	 * {@code wait_timeout}, a firewall's idle limit): connections are retired after {@code maxLifetimeMs} and idle ones are pinged
+	 * every {@code keepaliveMs}. Without that, a connection that sat unused overnight is found dead only when someone borrows
+	 * it, which HikariCP reports as "Failed to validate connection ... Possibly consider using a shorter maxLifetime value".
+	 */
+	static HikariConfig hikariConfig(DatabaseConfig config) {
 		final HikariConfig hikari = new HikariConfig();
 
 		hikari.setPoolName("JustBans-Pool");
@@ -52,9 +63,10 @@ public final class Database implements AutoCloseable {
 		hikari.setMaximumPoolSize(config.poolSize());
 		hikari.setMinimumIdle(Math.min(2, config.poolSize()));
 		hikari.setConnectionTimeout(config.connectionTimeoutMs());
+		hikari.setMaxLifetime(config.maxLifetimeMs());
+		hikari.setKeepaliveTime(config.keepaliveMs());
 
-		this.dataSource = new HikariDataSource(hikari);
-		this.executor = Executors.newFixedThreadPool(config.poolSize(), new NamedThreadFactory());
+		return hikari;
 	}
 
 	public Connection getConnection() throws SQLException {

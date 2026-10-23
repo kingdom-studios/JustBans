@@ -65,6 +65,16 @@ public final class TestDatabase implements AutoCloseable {
 		return this.database;
 	}
 
+	/** The name of this test's schema. */
+	public String schema() {
+		return this.schema;
+	}
+
+	/** A connection with the rights to create and drop databases and to kill other connections. */
+	public Connection adminConnection() throws Exception {
+		return this.admin.getConnection();
+	}
+
 	@Override
 	public void close() throws Exception {
 		this.database.close();

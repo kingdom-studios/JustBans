@@ -109,7 +109,7 @@ public final class Core implements AutoCloseable {
 		final String nodeId = "paper-" + serverName;
 
 		final Database database = new Database(new DatabaseConfig(Settings.Database.HOST, Settings.Database.PORT, Settings.Database.NAME, Settings.Database.USER, Settings.Database.PASSWORD,
-				Settings.Database.POOL_SIZE, Settings.Database.CONNECTION_TIMEOUT_MILLIS, Map.of()));
+				Settings.Database.POOL_SIZE, Settings.Database.CONNECTION_TIMEOUT_MILLIS, Settings.Database.MAX_LIFETIME_MILLIS, Settings.Database.KEEPALIVE_MILLIS, Map.of()));
 
 		RedisBus bus = null;
 		OutboxPublisher outbox = null;

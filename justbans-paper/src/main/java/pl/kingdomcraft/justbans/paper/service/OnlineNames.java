@@ -28,6 +28,9 @@ public final class OnlineNames {
 
 	/** Reloads from Redis. Blocking; call from a background thread. Keeps the previous list if Redis is unreachable. */
 	public void refresh() {
+		if (!this.bus.isConnected())
+			return; // Redis is down: do not queue up connection attempts every few seconds, keep the last list
+
 		try {
 			this.names.set(parse(this.bus.hashGetAll(this.bus.channels().online()).values()));
 
